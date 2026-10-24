@@ -1,4 +1,7 @@
 const readline = require('node:readline');
+const { readFileSync } = require('node:fs');
+
+const lectures = JSON.parse(readFileSync(`${__dirname}/lectures.json`, 'utf8'));
 
 const input = readline.createInterface({
   input: process.stdin,
@@ -48,6 +51,35 @@ input.on('line', (line) => {
             },
           },
         ],
+      },
+    })}\n`);
+  }
+
+  if (message.method === 'tools/call' && message.params.name === 'find_lecture') {
+    const lecture = lectures.find((item) => item.number === message.params.arguments.number);
+    process.stdout.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      id: message.id,
+      result: {
+        content: [{
+          type: 'text',
+          text: `Lecture ${lecture.number}: ${lecture.title}. Topics: ${lecture.topics}`,
+        }],
+        isError: false,
+      },
+    })}\n`);
+  }
+
+  if (message.method === 'tools/call' && message.params.name === 'list_lectures') {
+    const text = lectures
+      .map((lecture) => `Lecture ${lecture.number}: ${lecture.title}. Topics: ${lecture.topics}`)
+      .join('\n');
+    process.stdout.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      id: message.id,
+      result: {
+        content: [{ type: 'text', text }],
+        isError: false,
       },
     })}\n`);
   }
