@@ -1,0 +1,4 @@
+[mcp_servers.my-project]
+command = "node"
+args = ["mcp-server/server.js"]
+default_tools_approval_mode = "prompt"

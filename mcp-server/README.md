@@ -56,4 +56,4 @@ got: {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"find_lectur
 ```
 
 ## The description experiment
-<!-- Three sentences: what you changed in the description, whether the model chose the tool differently, and why you think so. -->
+I changed `find_lecture`'s description to say explicitly that it answers questions about a numbered lecture's title and topics. When asked “What does lecture 7 cover?”, Codex still answered from local files; when explicitly asked to use `my-project`, it called `find_lecture` and returned lecture 7. This suggests the more precise description alone did not steer tool selection in that run, while naming the server in the prompt made the tool choice clear.
