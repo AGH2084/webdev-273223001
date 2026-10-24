@@ -21,4 +21,34 @@ input.on('line', (line) => {
       },
     })}\n`);
   }
+
+  if (message.method === 'tools/list') {
+    process.stdout.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      id: message.id,
+      result: {
+        tools: [
+          {
+            name: 'find_lecture',
+            description: 'Find one course lecture by its number and return its title and topics. Use this when you need details about a specific lecture.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                number: { type: 'integer', description: 'Lecture number from 1 to 10.' },
+              },
+              required: ['number'],
+            },
+          },
+          {
+            name: 'list_lectures',
+            description: 'List all course lectures with their titles and topics. Use this to browse the course or find which lecture covers a subject.',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+            },
+          },
+        ],
+      },
+    })}\n`);
+  }
 });
