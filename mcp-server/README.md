@@ -40,7 +40,20 @@ It prints one line per check. Fix the failures yourself: the agent may explain a
 <!-- The exact command, so the lecturer can run your server too. -->
 
 ## Session transcript
-<!-- Paste one full session: initialize, the reply, tools/list, one good tools/call, one that fails. -->
+
+Started with `node mcp-server/server.js`, then entered these five messages in order. The `got:` lines are stderr; replies are stdout. The notification has no reply.
+
+```text
+got: {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"me","version":"1.0.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"lectures","version":"0.1.0"}}}
+got: {"jsonrpc":"2.0","method":"notifications/initialized"}
+got: {"jsonrpc":"2.0","id":2,"method":"tools/list"}
+{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"find_lecture","description":"Find one course lecture by its number and return its title and topics. Use this when you need details about a specific lecture.","inputSchema":{"type":"object","properties":{"number":{"type":"integer","description":"Lecture number from 1 to 10."}},"required":["number"]}},{"name":"list_lectures","description":"List all course lectures with their titles and topics. Use this to browse the course or find which lecture covers a subject.","inputSchema":{"type":"object","properties":{}}}]}}
+got: {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"find_lecture","arguments":{"number":5}}}
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"Lecture 5: What the agent built, part 1. Topics: HTTP, REST vs GraphQL, data modeling, ORM, layers"}],"isError":false}}
+got: {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"find_lecture","arguments":{"number":99}}}
+{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"No lecture found with number 99. Choose a lecture number from 1 to 10."}],"isError":true}
+```
 
 ## The description experiment
 <!-- Three sentences: what you changed in the description, whether the model chose the tool differently, and why you think so. -->

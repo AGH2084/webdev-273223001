@@ -23,6 +23,7 @@ input.on('line', (line) => {
         serverInfo: { name: 'lectures', version: '0.1.0' },
       },
     })}\n`);
+    return;
   }
 
   if (message.method === 'tools/list') {
@@ -53,6 +54,7 @@ input.on('line', (line) => {
         ],
       },
     })}\n`);
+    return;
   }
 
   if (message.method === 'tools/call' && message.params.name === 'find_lecture') {
@@ -83,6 +85,7 @@ input.on('line', (line) => {
         isError: false,
       },
     })}\n`);
+    return;
   }
 
   if (message.method === 'tools/call' && message.params.name === 'list_lectures') {
