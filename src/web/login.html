@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Club Calendar</title><link rel="icon" href="/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css"><script src="/login.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="/"><img src="/mark.svg" alt="" width="32" height="32">Club Calendar</a><span class="header-note">A little more time together.</span></header>
+  <main id="main" class="login-layout">
+    <section class="login-intro"><h1>Your club, on the calendar.</h1><p>Good ideas. Familiar faces. Something to look forward to.</p><p class="muted">Find your next meetup, workshop or evening with the club.</p><div class="calendar-note"><span class="calendar-symbol" aria-hidden="true">C</span><div><h2>Make room for your people.</h2><p>One place for what’s coming up.</p></div></div></section>
+    <section class="login-panel" aria-labelledby="login-title"><h2 id="login-title">Sign in</h2><p class="muted">See what your club has planned.</p>
+      <form id="login-form" action="/api/auth/login" method="post">
+        <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" required>
+        <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
+        <p id="login-message" class="message" role="status" aria-live="polite"></p>
+        <button id="sign-in" type="submit" class="primary">Sign in</button>
+      </form>
+      <p class="access-note">Need access? Ask your club organiser.</p>
+      <noscript><p>Enable JavaScript to sign in to Club Calendar.</p></noscript>
+    </section>
+  </main>
+  <footer class="site-footer">Club Calendar <span>More than another date.</span></footer>
+</body>
+</html>

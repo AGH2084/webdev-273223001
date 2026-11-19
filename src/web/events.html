@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upcoming events · Club Calendar</title><link rel="icon" href="/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css"><script src="/events.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to events</a>
+  <header class="site-header"><a class="brand" href="/events"><img src="/mark.svg" alt="" width="32" height="32">Club Calendar</a><div class="account"><span id="account-name"></span><button id="sign-out" type="button">Sign out</button></div></header>
+  <main id="main" class="agenda-layout">
+    <div class="title-row"><div><h1>Upcoming events</h1><p class="muted">Meet up. Learn something. Stay a little longer.</p></div><button id="refresh" type="button">Refresh events</button></div>
+    <div class="agenda-columns">
+      <section class="agenda" aria-label="Upcoming club events"><div class="list-heading"><h2>On the calendar</h2><span id="event-count" class="muted"></span></div>
+        <p id="events-message" class="message" role="status" aria-live="polite">Loading club events…</p>
+        <button id="retry" type="button" hidden>Retry</button>
+        <div id="event-list" aria-busy="true"><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>
+        <noscript><p>Enable JavaScript to load your club’s events.</p></noscript>
+      </section>
+      <aside class="club-note"><h2>A place in your week</h2><p>Small gatherings make a big difference. Find something you’d like to be part of.</p><div class="timezone"><h3>Local time, less guessing.</h3><p>All event dates and times are shown in Sofia time.</p></div><p class="muted">Places shown are the latest available when you load or refresh the calendar.</p></aside>
+    </div>
+    <p id="sign-out-message" class="message" role="status" aria-live="polite"></p>
+  </main>
+  <footer class="site-footer">Club Calendar <span>More than another date.</span></footer>
+</body>
+</html>

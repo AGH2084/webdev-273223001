@@ -7,13 +7,20 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/server.js",
+    "setup": "node scripts/setup.js",
+    "seed": "node scripts/seed.js",
+    "test": "node --test test/*.test.js",
+    "coverage": "node scripts/coverage.js",
+    "db": "node scripts/db.js",
+    "verify:slice": "node scripts/verify-slice.js",
     "mcp": "node mcp-server/server.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/AGH2084/webdev-273223001.git"
   },
+  "engines": { "node": ">=22.13.0" },
   "keywords": [],
   "author": "",
   "license": "ISC",

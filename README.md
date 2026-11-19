@@ -1,3 +1,21 @@
+# Club Calendar
+
+Exercise 2 builds password sign-in and a protected upcoming-events agenda over SQLite. The full project scope is in SPEC.md; setup and verification commands are below.
+
+Use Node 22.13 or newer. No external dependencies are needed:
+
+```sh
+node scripts/setup.js
+npm run seed
+npm start
+```
+
+Open http://localhost:3000 (or port 3000 in Codespaces). The seed prints a generated password for the fictional member@example.test and organiser@example.test accounts. To replace a lost local demo password without resetting events: `npm run seed -- --rotate-demo-password`.
+
+Run `npm test`, `npm run coverage`, `npm run verify:slice` and `node checks/ex2.mjs`. The existing MCP server still starts with `npm run --silent mcp`.
+
+---
+
 # Web Development course · your workspace
 
 This repository is your workspace for the whole course: Exercise 1 in `mcp-server/`, and your project (Exercises 2–5) in the rest of it. Everything runs in your browser through GitHub Codespaces, so nothing needs to be installed on your laptop.
