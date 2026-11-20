@@ -17,6 +17,16 @@ function repository(db) {
     removeRegistration: id => db.prepare('DELETE FROM registrations WHERE id=?').run(id),
     myRegistrations: userId => db.prepare(`SELECT r.id, r.event_id AS eventId, e.title, e.starts_at AS startsAt
       FROM registrations r JOIN events e ON e.id=r.event_id WHERE r.user_id=? ORDER BY e.starts_at`).all(userId),
+    club: id => db.prepare('SELECT * FROM clubs WHERE id=?').get(id),
+    ownedClubs: userId => db.prepare('SELECT id,name FROM clubs WHERE owner_id=? ORDER BY name').all(userId),
+    attendees: eventId => db.prepare(`SELECT u.name FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.event_id=? ORDER BY u.name`).all(eventId),
+    addEvent(userId, event) {
+      const r = db.prepare('INSERT INTO events (club_id,owner_id,title,description,starts_at,venue,capacity) VALUES (?,?,?,?,?,?,?)')
+        .run(event.clubId, userId, event.title, event.description, event.startsAt, event.venue, event.capacity);
+      return Number(r.lastInsertRowid);
+    },
+    updateEvent(id, event) { db.prepare('UPDATE events SET title=?,description=?,starts_at=?,venue=?,capacity=? WHERE id=?')
+      .run(event.title, event.description, event.startsAt, event.venue, event.capacity, id); },
     findUser: email => db.prepare('SELECT * FROM users WHERE email = ?').get(email),
     createSession: (digest, userId, expires) => db.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(digest, userId, expires),
     sessionUser: (digest, now) => db.prepare(`SELECT u.id, u.name, u.email, u.role FROM sessions s

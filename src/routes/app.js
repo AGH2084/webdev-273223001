@@ -5,9 +5,13 @@ const { repository } = require('../data/repository');
 const { authService } = require('../services/auth');
 const { eventsService } = require('../services/events');
 const { AppError } = require('../services/errors');
+const { registrationsService } = require('../services/registrations');
+const { eventManagement } = require('../services/event-management');
+const browserHeaders = require('../http/headers');
 
 const statuses = { InvalidInput: 422, InvalidCredentials: 401, Unauthenticated: 401,
-  ForbiddenOrigin: 403, TooLarge: 413, InvalidJson: 400, UnsupportedType: 415 };
+  ForbiddenOrigin: 403, Forbidden: 403, NotFound: 404, EventFull: 409, EventPast: 409,
+  AlreadyRegistered: 409, CapacityConflict: 409, TooLarge: 413, InvalidJson: 400, UnsupportedType: 415 };
 
 function sessionToken(req) {
   return (req.headers.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith('club_session='))?.slice(13);
@@ -35,16 +39,15 @@ function createApp(db, { clock, secureCookies = false } = {}) {
   const data = repository(db);
   const auth = authService(data, clock);
   const events = eventsService(data, auth, clock);
+  const registrations = registrationsService(data, auth, clock);
+  const management = eventManagement(data, auth, clock);
   const web = path.resolve(__dirname, '../web');
   const assets = {
     '/styles.css': ['styles.css', 'text/css'], '/login.js': ['login.js', 'text/javascript'],
     '/events.js': ['events.js', 'text/javascript'], '/mark.svg': ['mark.svg', 'image/svg+xml'],
   };
   return http.createServer(async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+    for (const [key, value] of Object.entries(browserHeaders)) res.setHeader(key, value);
     const json = (status, value) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(value));
@@ -58,7 +61,7 @@ function createApp(db, { clock, secureCookies = false } = {}) {
     try {
       const url = new URL(req.url, 'http://localhost');
       const token = sessionToken(req);
-      if (req.method === 'POST') {
+      if (['POST', 'PATCH', 'DELETE'].includes(req.method)) {
         const origin = req.headers.origin;
         if (req.headers['sec-fetch-site'] === 'cross-site' || (origin && new URL(origin).host !== req.headers.host)) {
           throw new AppError('ForbiddenOrigin', 'Open Club Calendar in this browser before submitting the form.');
@@ -75,6 +78,18 @@ function createApp(db, { clock, secureCookies = false } = {}) {
         return file('events.html');
       }
       if (req.method === 'GET' && url.pathname === '/api/events') return json(200, events.list(token));
+      if (url.pathname.startsWith('/api/') && ['POST', 'PATCH', 'DELETE'].includes(req.method) && !url.pathname.startsWith('/api/auth/')) auth.requireUser(token);
+      if (req.method === 'GET' && url.pathname === '/api/registrations') return json(200, { registrations: registrations.mine(token) });
+      if (req.method === 'POST' && url.pathname === '/api/registrations') return json(201, registrations.register(token, (await jsonBody(req)).eventId));
+      const registrationPath = url.pathname.match(/^\/api\/registrations\/(\d+)$/);
+      if (req.method === 'DELETE' && registrationPath) {
+        registrations.cancel(token, Number(registrationPath[1])); res.writeHead(204); return res.end();
+      }
+      if (req.method === 'GET' && url.pathname === '/api/clubs') return json(200, { clubs: management.clubs(token) });
+      if (req.method === 'POST' && url.pathname === '/api/events') return json(201, management.create(token, await jsonBody(req)));
+      const eventPath = url.pathname.match(/^\/api\/events\/(\d+)$/);
+      if (req.method === 'GET' && eventPath) return json(200, management.detail(token, Number(eventPath[1])));
+      if (req.method === 'PATCH' && eventPath) return json(200, management.edit(token, Number(eventPath[1]), await jsonBody(req)));
       if (req.method === 'POST' && url.pathname === '/api/auth/login') {
         const body = await jsonBody(req);
         const result = await auth.login(body.email, body.password);
