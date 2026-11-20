@@ -10,6 +10,8 @@ const { eventManagement } = require('../services/event-management');
 const browserHeaders = require('../http/headers');
 const { googleClient } = require('../auth/google-client');
 const { providerAuth } = require('../services/provider-auth');
+const { posterClient } = require('../model/poster-client');
+const { posterService } = require('../services/poster');
 
 const statuses = { InvalidInput: 422, InvalidCredentials: 401, Unauthenticated: 401,
   ForbiddenOrigin: 403, Forbidden: 403, NotFound: 404, EventFull: 409, EventPast: 409,
@@ -20,7 +22,7 @@ function sessionToken(req) {
   return (req.headers.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith('club_session='))?.slice(13);
 }
 
-async function jsonBody(req) {
+async function jsonBody(req, limit = 8192) {
   if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) {
     throw new AppError('UnsupportedType', 'Send this request as JSON.');
   }
@@ -28,7 +30,7 @@ async function jsonBody(req) {
   const chunks = [];
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 8192) throw new AppError('TooLarge', 'This request is too large.');
+    if (size > limit) throw new AppError('TooLarge', 'This request is too large.');
     chunks.push(chunk);
   }
   try {
@@ -38,13 +40,14 @@ async function jsonBody(req) {
   } catch { throw new AppError('InvalidJson', 'Send a valid JSON object.'); }
 }
 
-function createApp(db, { clock, secureCookies = false, providerClient = googleClient() } = {}) {
+function createApp(db, { clock, secureCookies = false, providerClient = googleClient(), modelClient = posterClient() } = {}) {
   const data = repository(db);
   const auth = authService(data, clock);
   const events = eventsService(data, auth, clock);
   const registrations = registrationsService(data, auth, clock);
   const management = eventManagement(data, auth, clock);
   const provider = providerAuth(data, auth, providerClient, clock);
+  const posters = posterService(auth, modelClient);
   const web = path.resolve(__dirname, '../web');
   const assets = {
     '/styles.css': ['styles.css', 'text/css'], '/login.js': ['login.js', 'text/javascript'],
@@ -101,6 +104,7 @@ function createApp(db, { clock, secureCookies = false, providerClient = googleCl
       }
       if (req.method === 'GET' && url.pathname === '/api/events') return json(200, events.list(token));
       if (url.pathname.startsWith('/api/') && ['POST', 'PATCH', 'DELETE'].includes(req.method) && !url.pathname.startsWith('/api/auth/')) auth.requireUser(token);
+      if (req.method === 'POST' && url.pathname === '/api/poster') return json(200, await posters.read(token, await jsonBody(req, 1500000)));
       if (req.method === 'GET' && url.pathname === '/api/registrations') return json(200, { registrations: registrations.mine(token) });
       if (req.method === 'POST' && url.pathname === '/api/registrations') return json(201, registrations.register(token, (await jsonBody(req)).eventId));
       const registrationPath = url.pathname.match(/^\/api\/registrations\/(\d+)$/);
