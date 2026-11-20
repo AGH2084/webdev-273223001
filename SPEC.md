@@ -88,11 +88,19 @@ Slice 1: src/web/events.js calls GET /api/events. src/routes/app.js reads the co
 - [AC-14] Signing out invalidates the session in the database, returns the member to /login and makes the old session receive 401 on /api/events.
 - [AC-15] When no future events exist, the list explains that nothing is scheduled; while loading it announces progress, and a failed request shows a readable message and Retry.
 
+### Slice 2: register for and manage club events
+- [AC-16] A signed-in member registering for a future event with a free place receives 201, sees their registration and reduces free places by one.
+- [AC-17] Registering for a past event receives 409; no registration is inserted.
+- [AC-18] Signed-out registration/cancellation receives 401; another member cancelling the registration receives 403 and the row remains unchanged.
+
 ## Traceability
 <!-- Filled in from Exercise 3 onward: each AC id, and the test that names it. -->
 | Criterion | Test |
 | --- | --- |
 | AC-1 | test/auth.test.js; test/api.test.js |
+| AC-16 | Pending implementation |
+| AC-17 | Pending implementation |
+| AC-18 | Pending implementation |
 | AC-10 | test/api.test.js |
 | AC-11 | test/database.test.js; test/api.test.js; test/web.test.js |
 | AC-12 | test/api.test.js; test/persistence.test.js |
