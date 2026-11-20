@@ -21,7 +21,14 @@ async function verifyPassword(password, stored) {
 function authService(data, clock = () => new Date()) {
   // Missing accounts still pay the password-derivation cost.
   const dummyHash = hashPassword(randomBytes(32).toString('hex'));
+  const issueSession = user => {
+    const token = randomBytes(32).toString('hex');
+    const expires = new Date(clock().getTime() + 8 * 60 * 60 * 1000).toISOString();
+    data.createSession(digest(token), user.id, expires);
+    return { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
+  };
   return {
+    issueSession,
     async login(email, password) {
       if (typeof email !== 'string' || typeof password !== 'string' ||
           !email.trim() || email.length > 254 || !password || Buffer.byteLength(password) > 1024) {
@@ -30,10 +37,7 @@ function authService(data, clock = () => new Date()) {
       const user = data.findUser(email.trim().toLowerCase());
       const matches = await verifyPassword(password, user ? user.password_hash : await dummyHash);
       if (!user || !matches) throw new AppError('InvalidCredentials', 'Email or password is incorrect');
-      const token = randomBytes(32).toString('hex');
-      const expires = new Date(clock().getTime() + 8 * 60 * 60 * 1000).toISOString();
-      data.createSession(digest(token), user.id, expires);
-      return { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
+      return issueSession(user);
     },
     requireUser(token) {
       if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) throw new AppError('Unauthenticated', 'Sign in to see club events.');

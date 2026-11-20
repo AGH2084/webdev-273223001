@@ -27,6 +27,17 @@ function repository(db) {
     },
     updateEvent(id, event) { db.prepare('UPDATE events SET title=?,description=?,starts_at=?,venue=?,capacity=? WHERE id=?')
       .run(event.title, event.description, event.startsAt, event.venue, event.capacity, id); },
+    storeOAuthState: (hash, verifier, expires) => db.prepare('INSERT INTO oauth_states VALUES (?,?,?)').run(hash, verifier, expires),
+    consumeOAuthState(hash, now) {
+      const row = db.prepare('DELETE FROM oauth_states WHERE state_hash=? RETURNING *').get(hash);
+      return row && row.expires_at > now ? row : null;
+    },
+    providerUser: subject => db.prepare('SELECT u.* FROM users u JOIN provider_accounts p ON p.user_id=u.id WHERE p.provider_id=?').get(subject),
+    linkProvider: (subject, userId) => db.prepare('INSERT INTO provider_accounts VALUES (?,?)').run(subject, userId),
+    createProviderUser(email, name, passwordHash) {
+      const result = db.prepare("INSERT INTO users (email,name,password_hash,role) VALUES (?,?,?,'member')").run(email, name, passwordHash);
+      return { id: Number(result.lastInsertRowid), email, name, role: 'member' };
+    },
     findUser: email => db.prepare('SELECT * FROM users WHERE email = ?').get(email),
     createSession: (digest, userId, expires) => db.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(digest, userId, expires),
     sessionUser: (digest, now) => db.prepare(`SELECT u.id, u.name, u.email, u.role FROM sessions s

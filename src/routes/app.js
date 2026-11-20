@@ -8,10 +8,13 @@ const { AppError } = require('../services/errors');
 const { registrationsService } = require('../services/registrations');
 const { eventManagement } = require('../services/event-management');
 const browserHeaders = require('../http/headers');
+const { googleClient } = require('../auth/google-client');
+const { providerAuth } = require('../services/provider-auth');
 
 const statuses = { InvalidInput: 422, InvalidCredentials: 401, Unauthenticated: 401,
   ForbiddenOrigin: 403, Forbidden: 403, NotFound: 404, EventFull: 409, EventPast: 409,
-  AlreadyRegistered: 409, CapacityConflict: 409, TooLarge: 413, InvalidJson: 400, UnsupportedType: 415 };
+  AlreadyRegistered: 409, CapacityConflict: 409, ProviderUnavailable: 503, InvalidOAuthState: 400,
+  UnverifiedIdentity: 403, TooLarge: 413, InvalidJson: 400, UnsupportedType: 415 };
 
 function sessionToken(req) {
   return (req.headers.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith('club_session='))?.slice(13);
@@ -35,12 +38,13 @@ async function jsonBody(req) {
   } catch { throw new AppError('InvalidJson', 'Send a valid JSON object.'); }
 }
 
-function createApp(db, { clock, secureCookies = false } = {}) {
+function createApp(db, { clock, secureCookies = false, providerClient = googleClient() } = {}) {
   const data = repository(db);
   const auth = authService(data, clock);
   const events = eventsService(data, auth, clock);
   const registrations = registrationsService(data, auth, clock);
   const management = eventManagement(data, auth, clock);
+  const provider = providerAuth(data, auth, providerClient, clock);
   const web = path.resolve(__dirname, '../web');
   const assets = {
     '/styles.css': ['styles.css', 'text/css'], '/login.js': ['login.js', 'text/javascript'],
@@ -61,6 +65,24 @@ function createApp(db, { clock, secureCookies = false } = {}) {
     try {
       const url = new URL(req.url, 'http://localhost');
       const token = sessionToken(req);
+      if (req.method === 'GET' && url.pathname === '/api/auth/providers') return json(200, { google: provider.available() });
+      if (req.method === 'GET' && url.pathname === '/api/auth/google') {
+        const flow = provider.begin();
+        res.setHeader('Set-Cookie', `club_oauth=${flow.state}; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=600${secureCookies ? '; Secure' : ''}`);
+        return redirect(flow.url);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/auth/google/callback') {
+        const browserState = (req.headers.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith('club_oauth='))?.slice(11);
+        res.setHeader('Set-Cookie', `club_oauth=; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=0${secureCookies ? '; Secure' : ''}`);
+        try {
+          const result = await provider.complete(url.searchParams.get('state'), browserState, url.searchParams.get('code'));
+          res.setHeader('Set-Cookie', [cookie(result.token), ...[].concat(res.getHeader('Set-Cookie'))]);
+          return redirect('/events');
+        } catch (error) {
+          if (error instanceof AppError) return redirect('/login?provider=failed');
+          throw error;
+        }
+      }
       if (['POST', 'PATCH', 'DELETE'].includes(req.method)) {
         const origin = req.headers.origin;
         if (req.headers['sec-fetch-site'] === 'cross-site' || (origin && new URL(origin).host !== req.headers.host)) {
