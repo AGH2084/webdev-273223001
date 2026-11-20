@@ -132,7 +132,9 @@ export const acceptanceIds = (spec) => {
 /** run a command and report what happened, instead of throwing */
 export const run = (cmd, args, { timeout = 180_000, cwd = '.' } = {}) => {
   try {
-    const out = execFileSync(cmd, args, { encoding: 'utf8', stdio: 'pipe', timeout, cwd, shell: false });
+    // npm is a .cmd launcher on Windows; cmd.exe is required there. Calls use fixed course commands.
+    const shell = process.platform === 'win32' && /^(npm|npm\.cmd)$/.test(cmd);
+    const out = execFileSync(cmd, args, { encoding: 'utf8', stdio: 'pipe', timeout, cwd, shell });
     return { code: 0, out };
   } catch (error) {
     return { code: error.status ?? 1, out: `${error.stdout ?? ''}${error.stderr ?? ''}` || String(error.message) };
