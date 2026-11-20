@@ -1,6 +1,9 @@
 const readline = require('node:readline');
 const fs = require('node:fs');
 const path = require('node:path');
+const { projectTools, callProjectTool } = require('./project-tools');
+const { openApplication } = require('../src/application');
+let application;
 
 // The lectures, read once when the server starts.
 const lectures = JSON.parse(fs.readFileSync(path.join(__dirname, 'lectures.json'), 'utf8'));
@@ -34,7 +37,7 @@ function send(reply) {
 }
 
 // Decide what to answer. Return the reply, or null to answer nothing.
-function handle(msg) {
+function handle(msg, services, token = process.env.MCP_TOKEN) {
   if (msg.method === 'initialize') {
     return {
       jsonrpc: '2.0',
@@ -50,11 +53,15 @@ function handle(msg) {
     return null; // a notification: it has no id and gets no reply
   }
   if (msg.method === 'tools/list') {
-    return { jsonrpc: '2.0', id: msg.id, result: { tools: tools } };
+    return { jsonrpc: '2.0', id: msg.id, result: { tools: [...tools, ...projectTools] } };
   }
   if (msg.method === 'tools/call') {
     const name = msg.params.name;
     const args = msg.params.arguments || {};
+    if (projectTools.some(tool => tool.name === name)) {
+      if (!services) { application ||= openApplication(); services = application; }
+      return { jsonrpc: '2.0', id: msg.id, result: callProjectTool(services, token, name, args) };
+    }
     if (name === 'find_lecture') {
       const lecture = lectures.find((l) => l.number === args.number);
       if (!lecture) {
@@ -76,10 +83,16 @@ function handle(msg) {
   return null;
 }
 
-const lines = readline.createInterface({ input: process.stdin });
-
-lines.on('line', (line) => {
-  console.error('got: ' + line);
-  const reply = handle(JSON.parse(line));
-  if (reply) send(reply);
-});
+if (require.main === module) {
+  const lines = readline.createInterface({ input: process.stdin });
+  lines.on('line', line => {
+    try {
+      const reply = handle(JSON.parse(line));
+      if (reply) send(reply);
+    } catch {
+      send({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Invalid protocol message' } });
+    }
+  });
+  lines.on('close', () => application?.close());
+}
+module.exports = { handle };
