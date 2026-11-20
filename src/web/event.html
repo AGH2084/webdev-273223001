@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event · Club Calendar</title><link rel="icon" href="/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="/api.js" defer></script><script src="/event.js" defer></script></head>
+<body><header class="site-header"><a class="brand" href="/events"><img src="/mark.svg" alt="" width="32" height="32">Club Calendar</a><a href="/events">All events</a></header>
+<main class="detail-layout"><h1 id="event-title">Event details</h1><p id="detail-message" class="message" role="status" aria-live="polite">Loading event…</p><button id="detail-retry" type="button" hidden>Retry</button>
+<section id="event-detail" class="agenda" hidden aria-label="Event details"><p id="event-club" class="muted"></p><p id="event-time"></p><p id="event-venue"></p><p id="event-description"></p><p id="event-capacity" class="event-places"></p>
+<div class="actions"><button id="register-event" type="button">Register</button><button id="cancel-event" type="button" hidden>Cancel my registration</button><a id="edit-event" class="button-link" hidden>Edit event</a></div></section>
+<section id="attendees-panel" class="agenda" hidden><h2>Attendees</h2><ul id="attendees"></ul><p id="attendees-empty" hidden>No members have registered yet.</p></section></main></body></html>

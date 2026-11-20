@@ -93,3 +93,15 @@ input { width: 100%; min-height: 48px; padding: var(--s3); color: var(--text); b
   .site-footer { gap: var(--s4); }
 }
 @media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
+.detail-layout { padding: var(--s6) var(--s5); max-width: 860px; }
+.detail-layout .agenda { margin-top: var(--s5); }
+.actions { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; margin-top: var(--s4); }
+.button-link, .event-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); }
+.button-link { padding: var(--s2) var(--s4); border: 1px solid var(--control); border-radius: var(--control-radius); text-decoration: none; background: var(--surface); }
+.event-link { margin-top: var(--s2); }
+select, textarea { width: 100%; min-height: 44px; font: inherit; border: 1px solid var(--control); border-radius: var(--control-radius); padding: var(--s3); background: var(--surface); color: var(--text); }
+.consent { display: flex; gap: var(--s3); align-items: center; min-height: 44px; }
+.consent input { width: 20px; min-height: 20px; flex: none; }
+#save-event { margin-top: var(--s5); }
+#google-sign-in { margin-top: var(--s4); width: 100%; justify-content: center; }
+@media (max-width: 600px) { .detail-layout { padding: var(--s4); } }

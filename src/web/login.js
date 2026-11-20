@@ -1,6 +1,13 @@
 const form = document.querySelector('#login-form');
 const button = document.querySelector('#sign-in');
 const message = document.querySelector('#login-message');
+if (new URLSearchParams(location.search).get('provider') === 'failed') {
+  message.classList.add('error'); message.textContent = 'Google sign-in could not be completed. Try again or use your email and password.';
+}
+fetch('/api/auth/providers').then(response => response.json()).then(result => {
+  document.querySelector('#google-sign-in').hidden = !result.google;
+  document.querySelector('#provider-message').textContent = result.google ? '' : 'Google sign-in is unavailable. Use your email and password.';
+}).catch(() => { document.querySelector('#provider-message').textContent = 'Use your email and password to sign in.'; });
 form.addEventListener('submit', async event => {
   event.preventDefault();
   button.disabled = true;

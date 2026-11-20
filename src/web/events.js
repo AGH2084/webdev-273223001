@@ -25,6 +25,7 @@ async function loadEvents() {
     const result = await response.json();
     if (!response.ok) throw new Error('Could not load your events. Please try again.');
     document.querySelector('#account-name').textContent = result.user.name;
+    document.querySelector('#create-event').hidden = result.user.role !== 'organiser';
     list.replaceChildren();
     count.textContent = `${result.events.length} ${result.events.length === 1 ? 'event' : 'events'}`;
     message.textContent = result.events.length ? 'Your calendar is up to date.' : 'Nothing is scheduled yet. Check back soon for your next club event.';
@@ -41,6 +42,7 @@ async function loadEvents() {
       content.append(node('h3', '', event.title), node('p', 'event-meta', event.club), details,
         node('p', 'event-description', event.description),
         node('p', 'event-places', `${event.freePlaces} of ${event.capacity} places free`));
+      const view = node('a', 'event-link', 'View event'); view.href = `/event?id=${event.id}`; content.append(view);
       row.append(dateBlock, content); list.append(row);
     }
   } catch {

@@ -52,6 +52,7 @@ function createApp(db, { clock, secureCookies = false, providerClient = googleCl
   const assets = {
     '/styles.css': ['styles.css', 'text/css'], '/login.js': ['login.js', 'text/javascript'],
     '/events.js': ['events.js', 'text/javascript'], '/mark.svg': ['mark.svg', 'image/svg+xml'],
+    '/api.js': ['api.js', 'text/javascript'], '/event.js': ['event.js', 'text/javascript'], '/editor.js': ['editor.js', 'text/javascript'],
   };
   return http.createServer(async (req, res) => {
     for (const [key, value] of Object.entries(browserHeaders)) res.setHeader(key, value);
@@ -95,12 +96,12 @@ function createApp(db, { clock, secureCookies = false, providerClient = googleCl
       if (req.method === 'GET' && assets[url.pathname]) return file(...assets[url.pathname]);
       if (req.method === 'GET' && url.pathname === '/') return redirect('/events');
       if (req.method === 'GET' && url.pathname === '/login') return file('login.html');
-      if (req.method === 'GET' && url.pathname === '/events') {
+      if (req.method === 'GET' && ['/events', '/event', '/event/edit'].includes(url.pathname)) {
         try { auth.requireUser(token); } catch (error) {
           if (error.code === 'Unauthenticated') return redirect('/login');
           throw error;
         }
-        return file('events.html');
+        return file(url.pathname === '/events' ? 'events.html' : url.pathname === '/event' ? 'event.html' : 'editor.html');
       }
       if (req.method === 'GET' && url.pathname === '/api/events') return json(200, events.list(token));
       if (url.pathname.startsWith('/api/') && ['POST', 'PATCH', 'DELETE'].includes(req.method) && !url.pathname.startsWith('/api/auth/')) auth.requireUser(token);

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit event · Club Calendar</title><link rel="icon" href="/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="/api.js" defer></script><script src="/editor.js" defer></script></head>
+<body><header class="site-header"><a class="brand" href="/events"><img src="/mark.svg" alt="" width="32" height="32">Club Calendar</a><a href="/events">All events</a></header>
+<main class="detail-layout"><h1 id="editor-title">Create event</h1><p id="editor-message" class="message" role="status" aria-live="polite">Loading event form…</p><button id="editor-retry" type="button" hidden>Retry</button>
+<div id="editor-content" hidden><section class="agenda"><h2>Read a poster</h2><p>Optional: use a poster to suggest a title, date and venue. Check all suggestions before saving.</p>
+<label for="poster-file">Poster image (PNG or JPEG, up to 1 MB)</label><input id="poster-file" type="file" accept="image/png,image/jpeg">
+<label class="consent"><input id="poster-consent" type="checkbox">Send only this selected poster image to Google for assistance.</label>
+<button id="read-poster" type="button">Suggest details from poster</button><p id="poster-message" class="message" role="status" aria-live="polite"></p></section>
+<section class="agenda"><h2>Event details</h2><form id="event-form">
+<label for="club">Club</label><select id="club" name="club" required></select>
+<label for="title">Title</label><input id="title" name="title" maxlength="120" required>
+<label for="startsAt">Date and time (your device timezone)</label><input id="startsAt" name="startsAt" type="datetime-local" required>
+<label for="venue">Venue</label><input id="venue" name="venue" maxlength="160" required>
+<label for="capacity">Places</label><input id="capacity" name="capacity" type="number" min="1" max="5000" required>
+<label for="description">Description</label><textarea id="description" name="description" maxlength="2000" rows="4"></textarea>
+<p>Suggested details are not saved until you confirm below.</p><button id="save-event" type="submit" class="primary">Confirm and save event</button></form></section></div></main></body></html>
