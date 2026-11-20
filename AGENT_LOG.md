@@ -51,3 +51,15 @@ One entry per agent session, newest at the bottom. Be honest: what went wrong is
 7. UI: extend the existing events screen and add event detail/organiser editing views from SPEC.md. Add working registration/cancellation, organiser forms and poster suggestions with loading, empty, error and success states. Google sign-in appears on the existing login screen. Keep the current design tokens and stack; no redesign or optional inspection tooling.
 8. Verification and documentation: map every AC to a real test, prove the rule tests detect a disabled rule and restore it, retain 100% service and 80% overall gates, and run checks/ex2.mjs, checks/ex3.mjs and MCP conformance. Update the architecture section in SPEC.md with actual layers for review, and record plan corrections, actual usage availability and any work outside the plan. At least five separate working feature commits; no squashing into Exercise 2.
 - Changed in review: plan, AC-16 through AC-18, automated checkpoints, ownership/provider authorization and the four specified MCP additions approved in chat. Keep the existing stack and coverage gates; no extra inspection tooling or real provider/model requests.
+
+### Exercise 3 verification and corrections
+- Checkpoints completed: numbered migration on an empty database; failure-first registration service tests; real HTTP registration and organiser tests; provider/model tests with injected clients; shared-service MCP tools; browser-script workflow tests. Separate migration, service, HTTP, authentication, model, MCP and UI commits preserve the steps.
+- Rule proof: temporarily disabled the full-event service guard. AC-2 failed because the database integrity error replaced the required readable service refusal. Restored the original file bytes and reran the registration tests successfully.
+- Went wrong: the supplied check could not launch npm on Windows (spawnSync npm ENOENT). The minimal launcher compatibility change in checks/lib.mjs was explicitly approved; assertions and thresholds are unchanged. The available browser timed out connecting to the isolated local preview; no visual verification is claimed.
+- Changed in review: real Google and model adapters remain separate from the injected test clients. No real provider requests or credential configuration were performed. The architecture note records the remaining browser fetch inconsistency for review.
+- Remaining checks by hand: exercise the new screens on localhost and review the architecture explanation; configure and verify live Google/model integrations separately. Remote push and CI require approval.
+- Usage: session token and billing counters are unavailable; no estimates were substituted for measured usage.
+
+### What the agent did that I did not ask for — Exercise 3
+- The Windows npm launcher correction was outside the original plan and was approved before the change. No optional report or inspection files were added.
+- Final automated results: 37 tests passed; service lines/functions/branches 100%; overall lines 94.25%; Exercise 2 self-check 32/32, Exercise 3 self-check 18/18 and MCP conformance 12/12. git diff --check passed.

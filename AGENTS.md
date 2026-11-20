@@ -5,7 +5,7 @@ Read this file at the start of every session. Keep it short and correct; update 
 ## Project
 <!-- One or two sentences: what the app does and for whom. Link SPEC.md. -->
 See `SPEC.md` for goals, non-goals and acceptance criteria.
-Club Calendar helps student-club members browse events and organisers manage limited places. Exercise 2 implements password sign-in and the upcoming-events list only.
+Club Calendar helps student-club members browse events and organisers manage limited places. Exercise 3 adds registration/cancellation, organiser editing, Google sign-in, poster assistance and shared-service MCP tools.
 
 ## Commands
 <!-- How to install, run, test. Keep these exact and working. -->
@@ -33,11 +33,11 @@ Requests arrive two ways and both end in the same place:
 A route handler reads the request and turns a result into a status code. A service holds the
 rules and knows nothing about HTTP or about MCP. Only the data layer writes SQL. An MCP tool
 that talks to the database directly is a second, unguarded way into your data: never add one.
-Slice 1: src/routes/app.js -> src/services/auth.js or events.js -> src/data/repository.js -> SQLite. The existing lecture MCP server remains separate until Exercise 3.
+src/routes/app.js and mcp-server/project-tools.js call src/services/ implementations, which use src/data/repository.js and SQLite. MCP_TOKEN is an ordinary application session.
 
 ## The model feature
 <!-- Provider, env var, and the call site. -->
-- The provider is named in exactly one file: planned src/model/poster-client.js; no model call is implemented in Slice 1.
+- The provider is named in exactly one file: src/model/poster-client.js; src/services/poster.js validates suggestions and provides manual fallback.
 - The key comes from an environment variable and is never committed or logged.
 - Every call has a timeout and a deterministic fallback, so the app still works when the provider is down or rate-limited.
 - The model's output is re-checked against real data before anything is saved or shown.

@@ -29,7 +29,7 @@ Club events.
 <!-- Which model, which modality, and what it does for a user.
      Name three things or the check fails: the input it receives, the output it produces,
      and what happens when the model is slow, rate-limited or wrong. -->
-- Model: Gemini 2.5 Flash, vision, planned adapter src/model/poster-client.js; chosen because poster extraction fits organising an event. Verify model availability before Exercise 3 implementation.
+- Model: Gemini 2.5 Flash, vision, adapter src/model/poster-client.js, configurable through MODEL_NAME; poster extraction assists organisers. Live provider availability still needs verification with configured credentials.
 - Input: only the poster image explicitly selected by the organiser; this image leaves the app for Google's hosted API. No member profiles, passwords, sessions or attendee lists are sent.
 - Output: suggested title, date and venue, validated before display and labelled as suggestions. A date that does not parse is left blank. The organiser corrects and confirms the form before anything is saved.
 - When it fails: a five-second timeout, missing GEMINI_API_KEY, 429, provider error or malformed output leaves manual entry available and shows a readable notice. No automatic save and no retry loop. Tests inject a fake client.
@@ -37,8 +37,8 @@ Club events.
 ## Auth
 <!-- Local sign-in plus at least one provider. Say how an account signing in both ways stays one account. -->
 - Local: email/password with salted scrypt hashes; opaque random session cookie with HttpOnly, SameSite=Lax, Path=/ and Secure under HTTPS. Only the SHA-256 session-token digest is stored in the database; sessions expire after eight hours and logout revokes them.
-- Provider: Google OAuth authorization-code flow with state and PKCE, planned after Slice 1; it must create the same ordinary session as local sign-in.
-- Linking: first match the provider's stable account ID; link an existing email account only when Google marks that email verified. Never merge an unverified address. Provider sign-in is specified, not implemented in Exercise 2.
+- Provider: Google OAuth authorization-code flow with state and PKCE, implemented in Exercise 3; it creates the same ordinary session as local sign-in.
+- Linking: first match the provider's stable account ID; link an existing email account only when Google marks that email verified. Never merge an unverified address. Provider sign-in was added in Exercise 3; automated tests use an injected client.
 - Permissions: signed-in members browse events and manage their own registrations; organisers manage only events they own for their club. Services enforce these rules; organisers have no blanket access to other people's sessions or registrations.
 
 ## MCP tools
@@ -52,19 +52,24 @@ Club events.
 | register | Registers the session owner for an event, refusing full or duplicate sign-ups | the token's owner |
 | cancel_registration | Cancels only a registration owned by the member whose token was supplied | the registration's owner |
 
-These four project tools are planned additions to Exercise 1's two tools, not implemented in Slice 1. Each will call the same service function as HTTP. MCP_TOKEN will carry an ordinary session, never an admin credential.
+These four project tools extend Exercise 1's two tools. Each calls the same service function as HTTP. MCP_TOKEN carries an ordinary session, never an admin credential.
 
 ## UI
 <!-- Stack, and the three or more screens. The graded checklist lives in docs/UI.md. -->
-Plain HTML, CSS tokens and browser JavaScript calling the REST API. Planned screens: sign in, upcoming events, event details/my registration, and organiser event editor with poster assistance. Slice 1 builds only sign in and the upcoming-events list.
+Plain HTML, CSS tokens and browser JavaScript calling the REST API. Implemented screens: sign in, upcoming events, event details/my registration, and organiser event editor with poster assistance. Slice 1 built sign in and the upcoming-events list; Slice 2 adds details, registration actions and the organiser editor.
 
 All screens must support loading, empty, error and success states, keyboard operation with visible focus, labelled inputs, 44px touch targets, measured 4.5:1 text contrast, and no page overflow at 380/768/1280px. Use a light agenda layout with a date block for each event; no dark mode in Slice 1 to keep one palette thoroughly checked. Track the final checklist in docs/UI.md during Exercise 4.
 
 ## Architecture
-Slice 1: src/web/events.js calls GET /api/events. src/routes/app.js reads the cookie and calls src/services/events.js, which asks src/services/auth.js to identify the member. src/data/repository.js owns parameterised SQL against SQLite. The service maps rows to public event fields; browser JavaScript creates text nodes and keeps view state in the DOM. HTML shells are served on the server; event content is rendered in the browser with loading feedback.
+A registration starts in src/web/event.js: the button calls the shared request wrapper in src/web/api.js, which sends POST /api/registrations with the event ID. The browser disables the action during the request and presents a readable success or error state. HTML shells come from the server; JavaScript renders event data using textContent.
 
-<!-- Exercise 3. One request traced through every layer, naming the file for each one,
-     plus one place where your own code does not match this layering. -->
+src/routes/app.js reads the session cookie and JSON body, then calls src/services/registrations.js. The route translates AppError codes into HTTP statuses, including 401, 403 and 409. It does not decide capacity or registration ownership. The service identifies the caller through src/services/auth.js and checks the event date, existing registration and remaining places.
+
+src/data/repository.js owns the parameterised SQL and executes the registration transaction against SQLite. migrations/002_feature_integrity.sql adds database capacity protection as a second integrity boundary. A successful service result becomes a 201 JSON response; the browser reloads event details so the registration action and remaining-place count reflect stored data. Cancellation follows the same layers and checks the registration owner before deleting its row.
+
+mcp-server/project-tools.js passes MCP_TOKEN to these same service functions. It cannot bypass the date, capacity or ownership rules. src/application.js composes the services for MCP; the HTTP app composes the same implementations. Model calls live in src/model/poster-client.js; src/services/poster.js validates suggestions and chooses manual fallback. Provider exchange lives in src/auth/google-client.js, while src/services/provider-auth.js handles linking and ordinary session creation.
+
+One remaining inconsistency is browser request handling: the original src/web/login.js and src/web/events.js still make their own fetch calls, while the new detail/editor screens use src/web/api.js. Keeping those working Slice 1 paths avoided a refactor unrelated to the new feature; server business rules still have one implementation. The browser maintains form and request state in the DOM rather than using a frontend framework.
 
 ## Acceptance criteria
 <!-- Every criterion carries an id. A test proves it by naming that id in its title, for example
@@ -78,7 +83,7 @@ Slice 1: src/web/events.js calls GET /api/events. src/routes/app.js reads the co
 - [AC-6] Google sign-in with a verified email matching a local account opens that same account with no duplicate user; an unverified email never links to that account.
 - [AC-7] An organiser uploading a poster sees validated title/date/venue suggestions, labelled as suggestions; no event is saved until they confirm. An invalid date remains blank.
 - [AC-8] With no model key, a timeout or a 429 response, poster assistance shows a readable failure notice and leaves manual event entry usable without saving an event.
-- [AC-9] The future MCP register tool, acting as the member's session, rejects a full event with the same rule and message as HTTP and inserts no row.
+- [AC-9] The MCP register tool, acting as the member's session, rejects a full event with the same rule and message as HTTP and inserts no row.
 
 ### Slice 1: sign-in and the upcoming events list
 - [AC-10] A signed-out visitor requesting /events is redirected to /login; GET /api/events returns 401 and exposes no event data.
@@ -98,9 +103,14 @@ Slice 1: src/web/events.js calls GET /api/events. src/routes/app.js reads the co
 | Criterion | Test |
 | --- | --- |
 | AC-1 | test/auth.test.js; test/api.test.js |
-| AC-16 | Pending implementation |
-| AC-17 | Pending implementation |
-| AC-18 | Pending implementation |
+| AC-16 | test/registrations.test.js; test/feature-api.test.js; test/web.test.js |
+| AC-17 | test/registrations.test.js; test/feature-api.test.js |
+| AC-18 | test/registrations.test.js; test/feature-api.test.js |
+| AC-2 / AC-3 / AC-4 | test/registrations.test.js; test/feature-api.test.js |
+| AC-5 | test/event-management.test.js; test/feature-api.test.js |
+| AC-6 | test/provider.test.js |
+| AC-7 / AC-8 | test/poster.test.js; test/web.test.js |
+| AC-9 | test/mcp.test.js |
 | AC-10 | test/api.test.js |
 | AC-11 | test/database.test.js; test/api.test.js; test/web.test.js |
 | AC-12 | test/api.test.js; test/persistence.test.js |
@@ -108,12 +118,12 @@ Slice 1: src/web/events.js calls GET /api/events. src/routes/app.js reads the co
 | AC-14 | test/auth.test.js; test/api.test.js |
 | AC-15 | test/api.test.js; test/web.test.js |
 
-AC-2 through AC-9 describe later work and are intentionally not claimed as implemented or tested in Exercise 2.
+AC-2 through AC-9 were implemented and tested in Exercise 3.
 
 ## Spec vs result
 - Manual verification: the localhost checklist was completed on 2026-11-20.
 - Automated evidence: AC-1 and AC-10 through AC-15 pass in service, real HTTP, persistence and browser-script tests. Removal/restore uses isolated data; reopening the file database does not recreate a removed event.
 - Missed or reinterpreted: the original spec did not choose a display timezone; the implementation chose Europe/Sofia. The first mobile screenshot also wrapped the product name and sign-out control awkwardly; the layout was corrected.
 - Changed after checking: AC-1 now explicitly requires Europe/Sofia display and a strictly future instant; UTC remains the storage/API format. The tested 16:00 UTC to 18:00 Sofia conversion is now a requirement rather than an accidental browser decision.
-- Pending by scope: Google sign-in, event registration/cancellation, organiser editing, poster assistance and the project MCP tools. These are not Slice 1 failures.
+- Exercise 3: registration/cancellation, organiser editing, Google linking, poster assistance and project MCP tools now have automated evidence. External Google/model calls were not performed; tests inject clients. The available browser could not connect to the isolated local preview, so the new screens still need a manual localhost check.
 <!-- After the agent builds the slice: which criteria passed, which it missed or reinterpreted, and what you changed in this spec because of it. -->

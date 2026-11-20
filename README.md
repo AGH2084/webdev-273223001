@@ -1,6 +1,6 @@
 # Club Calendar
 
-Exercise 2 builds password sign-in and a protected upcoming-events agenda over SQLite. The full project scope is in SPEC.md; setup and verification commands are below.
+Exercise 3 adds event registration/cancellation, owner-only organiser editing, Google sign-in, poster suggestions and four project MCP tools over SQLite. The full project scope is in SPEC.md; setup and verification commands are below.
 
 Use Node 22.13 or newer. No external dependencies are needed:
 
@@ -12,7 +12,9 @@ npm start
 
 Open http://localhost:3000 (or port 3000 in Codespaces). The seed prints a generated password for the fictional member@example.test and organiser@example.test accounts. To replace a lost local demo password without resetting events: `npm run seed -- --rotate-demo-password`.
 
-Run `npm test`, `npm run coverage`, `npm run verify:slice` and `node checks/ex2.mjs`. The existing MCP server still starts with `npm run --silent mcp`.
+Run `npm test`, `npm run coverage`, `npm run verify:slice` and `node checks/ex2.mjs`. Also run `node checks/ex3.mjs`. The MCP server starts with `npm run --silent mcp`; its project tools require MCP_TOKEN containing an unexpired ordinary application session token and enforce the same service rules as HTTP.
+
+Optional external features require environment configuration: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and PUBLIC_BASE_URL for Google sign-in (register the callback PUBLIC_BASE_URL/api/auth/google/callback); GEMINI_API_KEY and optionally MODEL_NAME for poster suggestions. Without configuration, password sign-in and manual event entry remain available. Posters are sent only after explicit selection and consent; suggestions never save an event automatically. External provider setup and live requests remain unverified.
 
 ---
 
