@@ -17,6 +17,10 @@ test('AC-7 poster suggestions are validated, labelled and never automatically sa
   assert.equal(invalid.suggestion.startsAt, ''); assert.equal(invalid.suggestion.venue, '');
   client.read = async () => ({ title: 'Workshop', startsAt: 'not-a-date' });
   assert.equal((await service.read('token', image)).suggestion.startsAt, '');
+  const jpeg = { ...image, mimeType: 'image/jpeg', data: Buffer.from('ffd8ff001122', 'hex').toString('base64') };
+  assert.equal((await service.read('token', jpeg)).source, 'suggestion');
+  client.read = async () => ({ title: 'Workshop', startsAt: '2026-99-01T14:00:00Z' });
+  assert.equal((await service.read('token', image)).suggestion.startsAt, '');
 });
 
 test('AC-8 missing key, timeout, rate limit and malformed answers keep manual entry available', async () => {

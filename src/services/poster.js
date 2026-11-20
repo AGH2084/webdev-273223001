@@ -19,21 +19,22 @@ function posterService(auth, client, { timeoutMs = 5000 } = {}) {
       }
       if (!client.configured) return fallback();
       let timer;
+      let result;
       try {
-        const result = await Promise.race([client.read({ mimeType: image.mimeType, data: image.data }),
+        result = await Promise.race([client.read({ mimeType: image.mimeType, data: image.data }),
           new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Poster timeout')), timeoutMs); })]);
-        if (!result || typeof result !== 'object' || Array.isArray(result)) return fallback();
-        const title = text(result.title, 120); const venue = text(result.venue, 160);
-        let startsAt = '';
-        if (typeof result.startsAt === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d{3})?)?Z$/.test(result.startsAt)) {
-          const date = new Date(result.startsAt);
-          if (Number.isFinite(date.getTime()) && date.toISOString().slice(0, 16) === result.startsAt.slice(0, 16)) startsAt = date.toISOString();
-        }
-        if (!title && !venue && !startsAt) return fallback();
-        return { source: 'suggestion', suggestion: { title, startsAt, venue },
-          message: 'Suggested details only. Check and correct them before saving the event.' };
       } catch { return fallback(); }
       finally { clearTimeout(timer); }
+      if (!result || typeof result !== 'object' || Array.isArray(result)) return fallback();
+      const title = text(result.title, 120); const venue = text(result.venue, 160);
+      let startsAt = '';
+      if (typeof result.startsAt === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d{3})?)?Z$/.test(result.startsAt)) {
+        const date = new Date(result.startsAt);
+        if (Number.isFinite(date.getTime()) && date.toISOString().slice(0, 16) === result.startsAt.slice(0, 16)) startsAt = date.toISOString();
+      }
+      if (!title && !venue && !startsAt) return fallback();
+      return { source: 'suggestion', suggestion: { title, startsAt, venue },
+        message: 'Suggested details only. Check and correct them before saving the event.' };
     },
   };
 }
