@@ -25,6 +25,7 @@ function repository(db) {
         .run(event.clubId, userId, event.title, event.description, event.startsAt, event.venue, event.capacity);
       return Number(r.lastInsertRowid);
     },
+    removeEvent: id => db.prepare('DELETE FROM events WHERE id=?').run(id),
     updateEvent(id, event) { db.prepare('UPDATE events SET title=?,description=?,starts_at=?,venue=?,capacity=? WHERE id=?')
       .run(event.title, event.description, event.startsAt, event.venue, event.capacity, id); },
     storeOAuthState: (hash, verifier, expires) => db.prepare('INSERT INTO oauth_states VALUES (?,?,?)').run(hash, verifier, expires),

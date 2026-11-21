@@ -5,12 +5,12 @@ Read this file at the start of every session. Keep it short and correct; update 
 ## Project
 <!-- One or two sentences: what the app does and for whom. Link SPEC.md. -->
 See `SPEC.md` for goals, non-goals and acceptance criteria.
-Club Calendar helps student-club members browse events and organisers manage limited places. Exercise 3 adds registration/cancellation, organiser editing, Google sign-in, poster assistance and shared-service MCP tools.
+Club Calendar helps student-club members browse events and organisers manage limited places. Exercise 3 adds registration/cancellation, organiser editing/deletion, Google sign-in, poster assistance and shared-service MCP tools.
 
 ## Commands
 <!-- How to install, run, test. Keep these exact and working. -->
 - Install: `node scripts/setup.js` (checks Node >=22.13 and applies migrations; no dependencies to install)
-- Run: `npm start` (http://localhost:3000; reads PORT; database data/club-calendar.db)
+- Run: `npm start` (http://localhost:3000; reads PORT; database data/club-calendar.db). With a private local environment file: `node --env-file=.env src/server.js`; npm start does not load it automatically.
 - Test: `npm test`
 - Coverage: `npm run coverage` (enforces existing 100% service lines/functions/branches and 80% overall line gates)
 - MCP server: `npm run --silent mcp`
@@ -40,13 +40,13 @@ src/routes/app.js and mcp-server/project-tools.js call src/services/ implementat
 - The provider is named in exactly one file: src/model/poster-client.js; src/services/poster.js validates suggestions and provides manual fallback.
 - The key comes from an environment variable and is never committed or logged.
 - Every call has a timeout and a deterministic fallback, so the app still works when the provider is down or rate-limited.
-- The model's output is re-checked against real data before anything is saved or shown.
+- Model suggestions are validated for field types, lengths, capacity range and date validity before display; saving rechecks event rules and club ownership.
 - Tests never call the provider: they pass in a fake client.
 
 ## The MCP server
 <!-- Where it lives and how it authenticates. -->
 - Lives in `mcp-server/`, grew out of Exercise 1.
-- Every tool calls a service function; none touches the data layer or the database directly.
+- Every project-data tool calls a shared service function; none touches the data layer or database directly. The two lecture tools read lectures.json separately.
 - It carries a user, and enforces exactly the same authorization rules as the HTTP API.
 - Adding a tool means adding a row to the table in `SPEC.md` too.
 

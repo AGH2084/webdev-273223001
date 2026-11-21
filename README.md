@@ -1,6 +1,6 @@
 # Club Calendar
 
-Exercise 3 adds event registration/cancellation, owner-only organiser editing, Google sign-in, poster suggestions and four project MCP tools over SQLite. The full project scope is in SPEC.md; setup and verification commands are below.
+Exercise 3 adds event registration/cancellation, owner-only organiser editing/deletion, Google sign-in, poster suggestions and four project MCP tools over SQLite. The full project scope is in SPEC.md; setup and verification commands are below.
 
 Use Node 22.13 or newer. No external dependencies are needed:
 
@@ -14,7 +14,12 @@ Open http://localhost:3000 (or port 3000 in Codespaces). The seed prints a gener
 
 Run `npm test`, `npm run coverage`, `npm run verify:slice` and `node checks/ex2.mjs`. Also run `node checks/ex3.mjs`. The MCP server starts with `npm run --silent mcp`; its project tools require MCP_TOKEN containing an unexpired ordinary application session token and enforce the same service rules as HTTP.
 
-Optional external features require environment configuration: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and PUBLIC_BASE_URL for Google sign-in (register the callback PUBLIC_BASE_URL/api/auth/google/callback); GEMINI_API_KEY and optionally MODEL_NAME for poster suggestions. Without configuration, password sign-in and manual event entry remain available. Posters are sent only after explicit selection and consent; suggestions never save an event automatically. External provider setup and live requests remain unverified.
+The Google sign-in and poster features require environment configuration: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and PUBLIC_BASE_URL for Google sign-in (register the callback PUBLIC_BASE_URL/api/auth/google/callback); GEMINI_API_KEY and optionally MODEL_NAME for poster suggestions. Without configuration, password sign-in and manual event entry remain available. Posters are sent only after explicit selection and consent; suggestions never save an event automatically. Google sign-in and initial live poster extraction have been manually confirmed; the latest full form and extraction checks remain pending.
+
+
+Event owners can choose **Delete event** on the details screen, then confirm permanent deletion of the event and its registrations. **Remove poster** in the editor clears only the selected file and upload consent; it keeps the event fields.
+
+For local external-feature setup, privately provide GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, PUBLIC_BASE_URL=http://localhost:3000 and GEMINI_API_KEY through the server environment. Register http://localhost:3000/api/auth/google/callback as the OAuth client's authorized redirect URI. Set MODEL_NAME=gemini-3.5-flash-lite for the chosen model. The code still defaults to gemini-2.5-flash when omitted; explicit configuration avoids relying on that older model. Poster extraction suggests title, date/time, venue, capacity and description, with a 30-second server limit and a 35-second browser limit. Date/time remains blank unless the poster supplies a timezone. If you store values in a local ignored .env file, launch with `node --env-file=.env src/server.js`; `npm start` does not automatically load that file. Restart the server after changing configuration. Never paste keys into the UI, logs or committed files.
 
 ---
 

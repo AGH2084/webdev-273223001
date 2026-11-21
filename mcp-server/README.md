@@ -15,7 +15,13 @@ Your hand-written MCP server lives in this folder. Write it in any language you 
 1. **`find_lecture`**: everyone writes this one. Input: `number` (1 to 10). It returns the title and topics of that lecture from `lectures.json`. A number outside the range is not a crash and not a protocol error: it is a result with `isError: true` and a readable message.
 2. **One of your own**: anything useful that reads local data. Give it a description a model can choose by. Every tool needs one: the self-check applies the same rule to all of them, because a description is the only thing a model reads when it decides what to call.
 
-## Where this goes next
+## Exercise 3 implementation
+
+The server now retains find_lecture/list_lectures and adds upcoming_events, my_registrations, register and cancel_registration in project-tools.js. Project tools use the same services as HTTP, with MCP_TOKEN identifying an ordinary session against the same local database. They return isError on refusal. Local stdio is supported; remote HTTP/OAuth MCP is not implemented. Startup does not automatically load .env.
+
+The actual lecture data contains 1–10. The current tool description and missing-lecture message still say 1–12; this is a known implementation inconsistency. The transcript below is historical Exercise 1 evidence, not the current six-tool catalog or current logging behavior.
+
+## Original course guidance
 
 Do not throw this folder away after Exercise 1. From Exercise 3 it becomes **your project's own MCP server**: the same protocol loop, with the tools rewired from `lectures.json` to your real data. Its tools call exactly the same service functions your HTTP routes call, so a tool obeys the same rules an API request does, and it carries a user (the `MCP_TOKEN` in `.env.example`) so it may do what that person may do and no more.
 

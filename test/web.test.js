@@ -9,9 +9,10 @@ function fakeNode(tag = 'div') {
   return { tag, className: '', textContent: '', value: '', files: [], checked: false, children: [], attributes: {}, listeners: {}, hidden: false,
     classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) },
     append(...children) { this.children.push(...children); }, replaceChildren(...children) { this.children = children; },
+    focus() { this.focused = true; }, scrollIntoView() { this.scrolledIntoView = true; },
     setAttribute(key, value) { this.attributes[key] = value; }, addEventListener(key, fn) { this.listeners[key] = fn; } };
 }
-function boot(script, fetch, { api, search = '', fileReader } = {}) {
+function boot(script, fetch, { api, search = '', fileReader, abortSignal = AbortSignal } = {}) {
   const elements = new Map();
   const htmlFile = join(__dirname, '../src/web', script.replace('.js', '.html'));
   if (existsSync(htmlFile)) for (const match of readFileSync(htmlFile, 'utf8').matchAll(/id="([^"]+)"/g)) elements.set(`#${match[1]}`, fakeNode());
@@ -20,7 +21,7 @@ function boot(script, fetch, { api, search = '', fileReader } = {}) {
   const navigations = [];
   const window = { ClubAPI: api };
   vm.runInNewContext(readFileSync(join(__dirname, '../src/web', script), 'utf8'), {
-    document, window, fetch, URLSearchParams, FileReader: fileReader, AbortSignal, Intl, Date, Error,
+    document, window, fetch, URLSearchParams, FileReader: fileReader, AbortSignal: abortSignal, Intl, Date, Error,
     location: { search, assign: url => navigations.push(url) },
   }, { filename: join(__dirname, '../src/web', script) });
   return { elements, navigations, window };
@@ -145,4 +146,134 @@ test('AC-18 shared browser API redirects expired sessions and preserves readable
   await assert.rejects(page.window.ClubAPI('/api/registrations/1'), /Only the owner/);
   response = { status: 401 }; await assert.rejects(page.window.ClubAPI('/api/events'), /Sign in/);
   assert.deepEqual(page.navigations, ['/login']);
+});
+
+
+test('AC-19 event deletion requires confirmation, reports failure and navigates after success', async () => {
+  const writes = []; let fail = true;
+  const api = async (path, options) => {
+    if (options) { writes.push({ path, options }); if (fail) throw new Error('Deletion failed'); return null; }
+    return { event: { id: 1, title: 'Event', club: 'Club', startsAt: '2099-12-01T14:00:00Z', venue: 'Lab', description: '', capacity: 12, freePlaces: 12 }, registrationId: null, canEdit: true, attendees: [] };
+  };
+  const page = boot('event.js', null, { api, search: '?id=1' }); await tick();
+  assert.equal(page.elements.get('#delete-event').hidden, false);
+  page.elements.get('#delete-event').listeners.click();
+  assert.equal(page.elements.get('#delete-confirmation').hidden, false);
+  assert.equal(writes.length, 0);
+  page.elements.get('#keep-event').listeners.click();
+  assert.equal(page.elements.get('#delete-confirmation').hidden, true);
+  page.elements.get('#delete-event').listeners.click();
+  await page.elements.get('#confirm-delete').listeners.click();
+  assert.match(page.elements.get('#detail-message').textContent, /Deletion failed/);
+  assert.equal(page.navigations.length, 0);
+  assert.equal(page.elements.get('#confirm-delete').disabled, false);
+  fail = false; await page.elements.get('#confirm-delete').listeners.click();
+  assert.equal(writes[1].path, '/api/events/1'); assert.equal(writes[1].options.method, 'DELETE');
+  assert.deepEqual(page.navigations, ['/events']);
+});
+
+test('AC-20 removing the poster clears selection and consent and ignores an outstanding suggestion', async () => {
+  let resolvePoster; const writes = [];
+  const api = async (path, options) => {
+    if (path === '/api/clubs') return { clubs: [{ id: 1, name: 'Club' }] };
+    writes.push(path); return new Promise(resolve => { resolvePoster = resolve; });
+  };
+  class Reader { readAsDataURL() { this.result = 'data:image/png;base64,fixture'; this.onload(); } }
+  const page = boot('editor.js', null, { api, fileReader: Reader }); await tick();
+  page.elements.get('#title').value = 'Keep title';
+  page.elements.get('#poster-file').files = [{ type: 'image/png', size: 12 }];
+  page.elements.get('#poster-file').value = 'poster.png';
+  page.elements.get('#poster-consent').checked = true;
+  const button = page.elements.get('#read-poster');
+  const pending = button.listeners.click({ currentTarget: button }); await tick();
+  page.elements.get('#remove-poster').listeners.click();
+  assert.equal(page.elements.get('#poster-file').value, '');
+  assert.equal(page.elements.get('#poster-consent').checked, false);
+  assert.equal(button.disabled, false);
+  resolvePoster({ suggestion: { title: 'Discard title', startsAt: '', venue: '' }, message: 'Suggestion' });
+  await pending;
+  assert.equal(page.elements.get('#title').value, 'Keep title');
+  assert.match(page.elements.get('#poster-message').textContent, /cleared/);
+  assert.equal(writes.length, 1); assert.equal(writes[0], '/api/poster');
+  assert.equal(page.navigations.length, 0);
+});
+
+
+test('AC-7 poster validation distinguishes file, size and consent and normalizes JPEG metadata', async () => {
+  const writes = [];
+  const api = async (path, options) => {
+    if (path === '/api/clubs') return { clubs: [{ id: 1, name: 'Club' }] };
+    writes.push(options.body); return { source: 'manual', message: 'Manual entry available.' };
+  };
+  class Reader { readAsDataURL() { this.result = 'data:;base64,fixture'; this.onload(); } }
+  const page = boot('editor.js', null, { api, fileReader: Reader }); await tick();
+  const file = page.elements.get('#poster-file'); const consent = page.elements.get('#poster-consent');
+  const button = page.elements.get('#read-poster'); const message = page.elements.get('#poster-message');
+  const click = () => button.listeners.click({ currentTarget: button });
+  await click(); assert.match(message.textContent, /Choose a poster image first/);
+  file.files = [{ name: 'poster.webp', type: 'image/webp', size: 10 }];
+  await click(); assert.match(message.textContent, /not supported/);
+  file.files = [{ name: 'poster.jpg', type: 'image/jpeg', size: 1048577 }];
+  await click(); assert.match(message.textContent, /1,048,576/);
+  file.files = [{ name: 'test.jpg', type: '', size: 231819 }];
+  file.listeners.change(); assert.match(message.textContent, /Poster selected/);
+  await click(); assert.match(message.textContent, /consent box/); assert.equal(writes.length, 0);
+  consent.checked = true; await click(); assert.equal(writes[0].mimeType, 'image/jpeg');
+  file.files = [{ name: 'test.jpg', type: 'image/jpg', size: 231819 }];
+  await click(); assert.equal(writes[1].mimeType, 'image/jpeg');
+  file.files = [{ name: 'test.png', type: '', size: 100 }];
+  await click(); assert.equal(writes[2].mimeType, 'image/png');
+});
+
+
+test('AC-8 browser waits for the poster fallback while ordinary API requests retain their limit', async () => {
+  const budgets = [];
+  const page = boot('api.js', async () => ({ ok: true, status: 200, json: async () => ({ source: 'manual' }) }),
+    { abortSignal: { timeout(ms) { budgets.push(ms); return {}; } } });
+  assert.equal((await page.window.ClubAPI('/api/poster', { method: 'POST', body: {} })).source, 'manual');
+  await page.window.ClubAPI('/api/events');
+  assert.deepEqual(budgets, [35000, 10000]);
+});
+
+
+test('AC-7 poster fills capacity and description only when supplied and waits for confirmation', async () => {
+  let suggestion = { title: 'Coding night', venue: 'Lab B102', startsAt: '', capacity: 40, description: 'Bring your own laptop.' };
+  const writes = [];
+  const api = async (path, options) => {
+    if (path === '/api/clubs') return { clubs: [{ id: 1, name: 'Club' }] };
+    writes.push(path); return { source: 'suggestion', suggestion, message: 'Check suggestions before saving.' };
+  };
+  class Reader { readAsDataURL() { this.result = 'data:image/jpeg;base64,fixture'; this.onload(); } }
+  const page = boot('editor.js', null, { api, fileReader: Reader }); await tick();
+  page.elements.get('#poster-file').files = [{ type: 'image/jpeg', size: 100 }];
+  page.elements.get('#poster-consent').checked = true;
+  const button = page.elements.get('#read-poster');
+  await button.listeners.click({ currentTarget: button });
+  assert.equal(page.elements.get('#capacity').value, 40);
+  assert.equal(page.elements.get('#description').value, 'Bring your own laptop.');
+  suggestion = { ...suggestion, capacity: null, description: '' };
+  await button.listeners.click({ currentTarget: button });
+  assert.equal(page.elements.get('#capacity').value, 40);
+  assert.equal(page.elements.get('#description').value, 'Bring your own laptop.');
+  assert.deepEqual(writes, ['/api/poster', '/api/poster']);
+  assert.equal(page.navigations.length, 0);
+});
+
+
+test('AC-5 event form displays the precise server refusal and preserves inputs for correction', async () => {
+  const page = boot('editor.js', null, { api: async (path) => {
+    if (path === '/api/clubs') return { clubs: [{ id: 1, name: 'Club' }] };
+    throw new Error('The event date and time are in the past or have already started. Choose a future date and time.');
+  } }); await tick();
+  const value = name => page.elements.get(`#${name}`);
+  value('title').value = 'Coding night'; value('venue').value = 'Lab'; value('capacity').value = '40';
+  value('description').value = 'Bring a laptop.'; value('club').value = '1'; value('startsAt').value = '2026-10-26T18:00';
+  await value('event-form').listeners.submit({ preventDefault() {} });
+  assert.match(value('save-message').textContent, /Choose a future date and time/);
+  assert.equal(value('save-message').focused, true); assert.equal(value('save-message').scrolledIntoView, true);
+  assert.equal(value('title').value, 'Coding night'); assert.equal(value('capacity').value, '40');
+  assert.equal(value('save-event').disabled, false); assert.equal(page.navigations.length, 0);
+  value('startsAt').value = '';
+  await value('event-form').listeners.submit({ preventDefault() {} });
+  assert.equal(value('save-message').textContent, 'Enter a valid event date and time.');
 });

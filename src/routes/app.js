@@ -116,6 +116,9 @@ function createApp(db, { clock, secureCookies = false, providerClient = googleCl
       if (req.method === 'POST' && url.pathname === '/api/events') return json(201, management.create(token, await jsonBody(req)));
       const eventPath = url.pathname.match(/^\/api\/events\/(\d+)$/);
       if (req.method === 'GET' && eventPath) return json(200, management.detail(token, Number(eventPath[1])));
+      if (req.method === 'DELETE' && eventPath) {
+        management.remove(token, Number(eventPath[1])); res.writeHead(204); return res.end();
+      }
       if (req.method === 'PATCH' && eventPath) return json(200, management.edit(token, Number(eventPath[1]), await jsonBody(req)));
       if (req.method === 'POST' && url.pathname === '/api/auth/login') {
         const body = await jsonBody(req);

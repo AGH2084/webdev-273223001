@@ -73,3 +73,60 @@ test('AC-7 AC-8 poster HTTP suggests without inserting events; missing key falls
   const fallback = await fetch(`${other.base}/api/poster`, { method: 'POST', headers: { Cookie: signed.headers.get('set-cookie').split(';')[0], 'Content-Type': 'application/json' }, body: JSON.stringify(image) });
   assert.equal((await fallback.json()).source, 'manual');
 });
+
+
+test('AC-8 poster fallback distinguishes configuration, API refusal, quota, timeout and invalid output without leaking details', async () => {
+  const cases = [
+    [400, /rejected the poster request/], [401, /refused API access/], [403, /refused API access/],
+    [404, /model is unavailable/], [429, /exhausted quota/], [503, /temporarily unavailable/],
+  ];
+  for (const [status, message] of cases) {
+    const client = posterClient({ apiKey: 'private-fixture-key', fetchImpl: async () => ({ ok: false, status }) });
+    const result = await posterService(auth, client).read('token', image);
+    assert.equal(result.source, 'manual'); assert.match(result.message, message);
+    assert.doesNotMatch(result.message, /private-fixture-key/);
+  }
+  for (const name of ['TimeoutError', 'AbortError']) {
+    const client = posterClient({ apiKey: 'fixture', fetchImpl: async () => { throw Object.assign(new Error('private provider detail'), { name }); } });
+    assert.match((await posterService(auth, client).read('token', image)).message, /timed out/);
+  }
+  assert.match((await posterService(auth, { configured: false }).read('token', image)).message, /not configured/);
+  assert.match((await posterService(auth, { configured: true, read: () => new Promise(() => {}) }, { timeoutMs: 5 }).read('token', image)).message, /timed out/);
+  assert.match((await posterService(auth, posterClient({ apiKey: 'fixture', model: '../wrong' })).read('token', image)).message, /model is unavailable/);
+  const badAnswer = posterClient({ apiKey: 'fixture', fetchImpl: async () => ({ ok: true, json: async () => ({}) }) });
+  assert.match((await posterService(auth, badAnswer).read('token', image)).message, /usable poster details/);
+});
+
+
+test('AC-8 poster adapter allows 30 seconds and aborts an unanswered provider request', async () => {
+  const originalTimeout = AbortSignal.timeout; const budgets = [];
+  AbortSignal.timeout = ms => { budgets.push(ms); return originalTimeout(5); };
+  try {
+    const client = posterClient({ apiKey: 'fixture-only', fetchImpl: (url, options) => new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+    }) });
+    // Keep the event loop alive while the short injected AbortSignal timer fires.
+    const keepAlive = setTimeout(() => {}, 1000);
+    try { await assert.rejects(client.read(image), { code: 'PosterTimeout' }); }
+    finally { clearTimeout(keepAlive); }
+    assert.deepEqual(budgets, [30000]);
+  } finally { AbortSignal.timeout = originalTimeout; }
+});
+
+
+test('AC-7 poster capacity and description are validated independently without inventing missing values', async () => {
+  let answer = { capacity: 40, description: '  Collaborative coding. Bring your own laptop.  ' };
+  const service = posterService(auth, { configured: true, read: async () => answer });
+  const result = await service.read('token', image);
+  assert.equal(result.suggestion.capacity, 40);
+  assert.equal(result.suggestion.description, 'Collaborative coding. Bring your own laptop.');
+  for (const capacity of [undefined, null, '40', 1.5, 0, 5001]) {
+    answer = { title: 'Event', capacity, description: 123 };
+    const invalid = await service.read('token', image);
+    assert.equal(invalid.suggestion.capacity, null); assert.equal(invalid.suggestion.description, '');
+  }
+  answer = { capacity: 5000, description: 'x'.repeat(2001) };
+  assert.equal((await service.read('token', image)).suggestion.description.length, 2000);
+  answer = { capacity: 1 };
+  assert.equal((await service.read('token', image)).suggestion.capacity, 1);
+});

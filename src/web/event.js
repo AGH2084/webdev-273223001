@@ -21,6 +21,7 @@ async function loadDetail(notice = '') {
     registerButton.disabled = event.freePlaces === 0 || new Date(event.startsAt) <= new Date();
     registerButton.textContent = event.freePlaces === 0 ? 'Event full' : 'Register';
     const edit = document.querySelector('#edit-event'); edit.hidden = !result.canEdit; edit.href = `/event/edit?id=${eventId}`;
+    document.querySelector('#delete-event').hidden = !result.canEdit;
     const attendees = document.querySelector('#attendees'); attendees.replaceChildren();
     document.querySelector('#attendees-panel').hidden = !result.canEdit;
     if (result.canEdit) {
@@ -49,3 +50,15 @@ registerButton.addEventListener('click', () => registrationAction(false));
 cancelButton.addEventListener('click', () => registrationAction(true));
 detailRetry.addEventListener('click', () => loadDetail());
 loadDetail();
+
+document.querySelector('#delete-event').addEventListener('click', () => { document.querySelector('#delete-confirmation').hidden = false; });
+document.querySelector('#keep-event').addEventListener('click', () => { document.querySelector('#delete-confirmation').hidden = true; });
+document.querySelector('#confirm-delete').addEventListener('click', async () => {
+  const button = document.querySelector('#confirm-delete'); button.disabled = true;
+  detailMessage.classList.remove('error'); detailMessage.textContent = 'Deleting event…';
+  try {
+    await window.ClubAPI(`/api/events/${eventId}`, { method: 'DELETE' });
+    location.assign('/events');
+  } catch (error) { detailMessage.classList.add('error'); detailMessage.textContent = error.message || 'Could not delete this event. Please try again.'; }
+  finally { button.disabled = false; }
+});

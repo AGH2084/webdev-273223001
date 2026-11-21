@@ -20,3 +20,9 @@ coverage/
 
 # editor and OS files
 .DS_Store
+
+# Local poster used for manual verification
+/test.jpg
+
+# local testing configuration for opencode
+opencode.json

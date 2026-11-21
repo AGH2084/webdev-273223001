@@ -46,3 +46,19 @@ test('AC-5 organiser HTTP creates/edits owned events and keeps attendee details 
   assert.equal((await (await call('/api/clubs', 'GET', owner)).json()).clubs.length, 1);
   assert.equal((await call('/api/events', 'POST', owner, { ...details, capacity: 0 })).status, 422);
 });
+
+
+test('AC-19 HTTP deletion enforces ownership and removes the event and registrations', async t => {
+  const { base, login, password, db } = await fixture(t);
+  const member = (await login()).headers.get('set-cookie').split(';')[0];
+  const signed = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'organiser@example.test', password }) });
+  const owner = signed.headers.get('set-cookie').split(';')[0];
+  const remove = cookie => fetch(`${base}/api/events/1`, { method: 'DELETE', headers: cookie ? { Cookie: cookie } : {} });
+  assert.equal((await remove()).status, 401);
+  assert.equal((await remove(member)).status, 403);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM registrations WHERE event_id=1').get().n, 1);
+  assert.equal((await remove(owner)).status, 204);
+  assert.equal((await fetch(`${base}/api/events/1`, { headers: { Cookie: owner } })).status, 404);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM registrations WHERE event_id=1').get().n, 0);
+  assert.equal((await remove(owner)).status, 404);
+});

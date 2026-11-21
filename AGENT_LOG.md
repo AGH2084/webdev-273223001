@@ -27,6 +27,20 @@ One entry per agent session, newest at the bottom. Be honest: what went wrong is
 - Went wrong:
 - Changed by hand: Other than the SPEC.md file nothing was written by hand
 
+## 2026-11-20 · Exercise 3
+- Goal: implement event registration/cancellation through every layer, plus the existing model, organiser and provider criteria required by the supplied all-criteria self-check.
+- Autonomy: I authorized the agent to work within one plan step at a time, with tests and diff-review checkpoints before local commits; no remote push without my approval.
+- Checkpoints: approve this plan before implementation; prove a service rule test fails first; apply new migrations to an empty database; test service/API failures and ownership; inspect the UI; demonstrate that disabling a rule breaks a test; run all self-checks and coverage.
+- Delegated: I delegated implementation and automated verification to the agent, excluding real model requests, secret configuration, dependencies and CI changes.
+
+## 2026-11-21 · Exercise 3 Extended
+- Goal: I requested owner-only event deletion, clearing a selected poster without reloading, and an explanation of external feature configuration.
+- Plan: add AC-19/20; failure-first deletion service test; repository delete using existing registration cascade; DELETE endpoint; explicit confirmation UI; clear poster selection/consent and ignore stale suggestions; test and document.
+- Authorization: I approved adding event deletion for the owning organiser and clearing the selected poster. The agent reused the existing owner-only management rules; no MCP tools or migrations changed.
+- Checkpoints: new service test failed before implementation; then 41 tests passed, service coverage stayed 100%, overall line coverage 94.87%, Exercise 3 self-check 18/18. git diff --check passed.
+- Changed in review: no dependencies, secrets, environment files or CI changes. No live provider calls or browser visual verification; UI behavior has browser-script tests.
+- What the agent did that I did not ask for: clearing a poster also invalidates outstanding suggestions so a late reply cannot restore removed content. Existing event fields remain unchanged.
+
 ## What the agent did that I did not ask for
 - Added focused tests for sign-in, data persistence, HTTP and browser-script states so the slice has checkable evidence.
 - Used optional visual-inspection tooling during verification; removed it and the separate plan/checks documents after review because Exercise 2 does not require those files.
@@ -34,12 +48,6 @@ One entry per agent session, newest at the bottom. Be honest: what went wrong is
 - Removed an unnecessary re-login session-rotation branch from the HTTP handler; ownership/session rules stay in services.
 - Used a compact header instead of the design sheet's sidebar because this slice has one destination.
 - Kept final coverage thresholds unchanged and enforced them from the custom coverage command so the existing CI custom-script path cannot silently skip its gates.
-
-## 2026-11-20 · Exercise 3 plan
-- Goal: implement event registration/cancellation through every layer, plus the existing model, organiser and provider criteria required by the supplied all-criteria self-check.
-- Autonomy: proposed work within one plan step at a time, with tests and a reviewed diff before each local commit; no remote push without approval.
-- Checkpoints: approve this plan before implementation; prove a service rule test fails first; apply new migrations to an empty database; test service/API failures and ownership; inspect the UI; demonstrate that disabling a rule breaks a test; run all self-checks and coverage.
-- Delegated: implementation and automated verification. No real model requests, secret configuration, dependencies or CI changes are proposed.
 
 ### Plan
 1. Migration: add migrations/002_feature_integrity.sql with registration-capacity protection, the relations needed for verified provider linking and short-lived OAuth state. Do not edit 001_initial.sql. Test an empty database and preserve existing demo data. Commit the working migration step.
@@ -50,7 +58,7 @@ One entry per agent session, newest at the bottom. Be honest: what went wrong is
 6. MCP: keep the two lecture tools and add the four tools already listed in SPEC.md: upcoming_events, my_registrations, register and cancel_registration. Each uses the ordinary MCP_TOKEN session and exactly the same services as HTTP, with no SQL in MCP. Test the handshake, tool permissions and full-event refusal (AC-9).
 7. UI: extend the existing events screen and add event detail/organiser editing views from SPEC.md. Add working registration/cancellation, organiser forms and poster suggestions with loading, empty, error and success states. Google sign-in appears on the existing login screen. Keep the current design tokens and stack; no redesign or optional inspection tooling.
 8. Verification and documentation: map every AC to a real test, prove the rule tests detect a disabled rule and restore it, retain 100% service and 80% overall gates, and run checks/ex2.mjs, checks/ex3.mjs and MCP conformance. Update the architecture section in SPEC.md with actual layers for review, and record plan corrections, actual usage availability and any work outside the plan. At least five separate working feature commits; no squashing into Exercise 2.
-- Changed in review: plan, AC-16 through AC-18, automated checkpoints, ownership/provider authorization and the four specified MCP additions approved in chat. Keep the existing stack and coverage gates; no extra inspection tooling or real provider/model requests.
+- Changed in review: I approved the plan, AC-16 through AC-18, automated checkpoints, ownership/provider authorization and the four specified MCP additions in chat. Keep the existing stack and coverage gates; no extra inspection tooling or real provider/model requests.
 
 ### Exercise 3 verification and corrections
 - Checkpoints completed: numbered migration on an empty database; failure-first registration service tests; real HTTP registration and organiser tests; provider/model tests with injected clients; shared-service MCP tools; browser-script workflow tests. Separate migration, service, HTTP, authentication, model, MCP and UI commits preserve the steps.
@@ -60,6 +68,6 @@ One entry per agent session, newest at the bottom. Be honest: what went wrong is
 - Remaining checks by hand: exercise the new screens on localhost and review the architecture explanation; configure and verify live Google/model integrations separately. Remote push and CI require approval.
 - Usage: session token and billing counters are unavailable; no estimates were substituted for measured usage.
 
-### What the agent did that I did not ask for — Exercise 3
-- The Windows npm launcher correction was outside the original plan and was approved before the change. No optional report or inspection files were added.
+### What the agent did that I did not ask for - Exercise 3
+- The Windows npm launcher correction was outside the original plan; I approved it before the agent made the change. No optional report or inspection files were added.
 - Final automated results: 37 tests passed; service lines/functions/branches 100%; overall lines 94.25%; Exercise 2 self-check 32/32, Exercise 3 self-check 18/18 and MCP conformance 12/12. git diff --check passed.
