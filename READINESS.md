@@ -1,14 +1,12 @@
 # Readiness report: Club Calendar
 
-Evidence recorded on 2026-11-21. This draft records local browser automation, automated checks and the manual local review reported complete in chat. Deployment was excluded. The observations and proposed gap ranking still need personal review before submission.
+Evidence recorded on 2026-11-21. This draft records local browser automation, automated checks and the manual local review reported complete in chat. Render deployment evidence was added after the local review. The observations and proposed gap ranking still need personal review before submission.
 
 ## 1. Live URL and how to verify it
 
-Not deployed. `course.json` deliberately has an empty `liveUrl`. The disposable local preview is `http://localhost:3104`; this is not a public HTTPS address.
+[Club Calendar](https://club-calendar.onrender.com) is live on Render. The first deployment used commit `4cda36f` with Neon PostgreSQL.
 
-After deployment, check `/health` returns 200 with `{"status":"ok","db":"ok"}`, complete sign-in and registration, and confirm a record survives redeployment. No live result, rollback time or cold-start time is claimed.
-
-How I checked: local browser captures and container health checks. No Render deployment was performed.
+How I checked: Render marked the deployment live. The public HTTPS sign-in page returned the expected title, and `/health` returned HTTP 200 with `{"status":"ok","db":"ok"}`. The Exercise 4 checker passed all 34 checks. The project owner also manually verified that password and Google sign-in worked on the live site, registration and cancellation succeeded, poster extraction returned suggestions, and data persisted across a Render redeploy. The project owner confirmed that Render deploys only after GitHub Actions passes.
 
 ## 2. Environment variables
 
@@ -63,14 +61,14 @@ Passwords use salted scrypt and sessions store SHA-256 token digests. Cookie fla
 
 Automated tests separately exercise signed-out requests and signed-in non-owners for event management and registration cancellation. AC-19 verifies a member/other organiser cannot delete an event and its rows remain unchanged. This is automated evidence, not a claim of a manual second-account deletion test during screenshot collection.
 
-How I checked: 57 passing tests including disposable PostgreSQL integration; current service lines/functions/branches 100%, overall lines 96.56%. A limited credential-pattern scan covered 113 candidate files and Git patch history, finding no known Google API-key, OAuth-secret, GitHub-token or private-key patterns. `.env` is untracked. This does not replace an independent manual history search. Public HTTPS remains unverified.
+How I checked: 57 passing tests including disposable PostgreSQL integration; current service lines/functions/branches 100%, overall lines 96.56%. A limited credential-pattern scan covered 113 candidate files and Git patch history, finding no known Google API-key, OAuth-secret, GitHub-token or private-key patterns. `.env` is untracked. This does not replace an independent manual history search. The public health and login endpoints were verified over HTTPS.
 
 ## 7. Known gaps, ranked by risk
 
 Proposed ranking for personal review:
 
-1. **No deployed end-to-end evidence.** Public HTTPS, Neon persistence across redeploy, live Google callback, cold starts, rollback and Render CI gating are unverified. Next: deploy only after approval, check each behavior and record actual results. This blocks completion of Exercise 4.
-2. **Exercise 4 remote red/green CI proof is pending.** A deliberate local coverage failure was observed and restored; no failing commit was pushed. Next: review and authorize the demonstration, then inspect Actions and the deployment gate.
+1. **Cold-start and rollback evidence is still pending.** Public HTTPS, database health, live sign-in and registration, Neon persistence across redeploy, and Render CI gating passed. Cold-start timing and a rollback drill remain open.
+2. **Exercise 4 remote red/green CI proof is pending.** A deliberate local coverage failure was observed and restored; no failing commit was pushed. The project owner verified Render CI gating separately. A remote coverage-gate demonstration remains unrecorded.
 3. **Known behavior/spec discrepancies.** my_registrations includes past registrations despite its upcoming-only description; failed registration can re-enable Register for a started event although the service refuses it; lecture descriptions/errors say 1–12 while data contains 1–10. Next: review and correct each contract with matching tests before defence.
 4. **Local UI measurements have limited coverage.** Chrome recorded a maximum interaction-to-next-paint of 32 ms for the poster test and 24 ms for the other sampled actions. Initial calendar and create-editor samples had zero layout shift. Next: repeat these measurements on the deployed site and representative devices. See [the UI checklist](docs/UI.md).
 5. **Independent review remains.** The diff, secret history, report observations and gap ranking need personal review before submission. Next: perform that review; automated evidence alone does not establish it happened.
@@ -85,7 +83,7 @@ The default model is Gemini 3.5 Flash-Lite. [Published standard pricing](https:/
 
 A missing key produces a readable not-configured/manual-entry notice. Timeout, denied access, 429/quota failure and invalid output also fall back without saving. The server timeout is 30 seconds and browser timeout 35 seconds.
 
-How I checked: selected the existing test.jpg fixture through the real file picker. [Progress](docs/ui/poster-thinking.jpg) was captured while a temporary sessions-table lock delayed the local request. A separate request after automatic rollback produced the actual [missing-key fallback](docs/ui/poster-failure.jpg). No Google request was made. Injected-client tests cover suggestion and provider-failure branches; production behavior remains unverified.
+How I checked: selected the existing test.jpg fixture through the real file picker. [Progress](docs/ui/poster-thinking.jpg) was captured while a temporary sessions-table lock delayed the local request. A separate request after automatic rollback produced the actual [missing-key fallback](docs/ui/poster-failure.jpg). No Google request was made. Injected-client tests cover suggestion and provider-failure branches; the project owner separately confirmed that poster extraction produced suggestions on the live Render site.
 
 ## 9. MCP
 
