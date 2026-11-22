@@ -37,7 +37,7 @@ function send(reply) {
 }
 
 // Decide what to answer. Return the reply, or null to answer nothing.
-function handle(msg, services, token = process.env.MCP_TOKEN) {
+async function handle(msg, services, token = process.env.MCP_TOKEN) {
   if (msg.method === 'initialize') {
     return {
       jsonrpc: '2.0',
@@ -60,7 +60,7 @@ function handle(msg, services, token = process.env.MCP_TOKEN) {
     const args = msg.params.arguments || {};
     if (projectTools.some(tool => tool.name === name)) {
       if (!services) { application ||= openApplication(); services = application; }
-      return { jsonrpc: '2.0', id: msg.id, result: callProjectTool(services, token, name, args) };
+      return { jsonrpc: '2.0', id: msg.id, result: await callProjectTool(services, token, name, args) };
     }
     if (name === 'find_lecture') {
       const lecture = lectures.find((l) => l.number === args.number);
@@ -85,14 +85,16 @@ function handle(msg, services, token = process.env.MCP_TOKEN) {
 
 if (require.main === module) {
   const lines = readline.createInterface({ input: process.stdin });
+  let pending = Promise.resolve();
   lines.on('line', line => {
-    try {
-      const reply = handle(JSON.parse(line));
-      if (reply) send(reply);
-    } catch {
-      send({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Invalid protocol message' } });
-    }
+    pending = pending.then(async () => {
+      let msg;
+      try { msg = JSON.parse(line); }
+      catch { send({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Invalid protocol message' } }); return; }
+      try { const reply = await handle(msg); if (reply) send(reply); }
+      catch { send({ jsonrpc: '2.0', id: msg.id ?? null, error: { code: -32603, message: 'Application unavailable. Check server configuration.' } }); }
+    });
   });
-  lines.on('close', () => application?.close());
+  lines.on('close', () => { pending.then(() => application?.close()); });
 }
 module.exports = { handle };

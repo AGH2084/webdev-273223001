@@ -2,8 +2,8 @@ const { AppError } = require('./errors');
 const { validId } = require('./registrations');
 
 function eventManagement(data, auth, clock = () => new Date()) {
-  const organiser = token => {
-    const user = auth.requireUser(token);
+  const organiser = async token => {
+    const user = await auth.requireUser(token);
     if (user.role !== 'organiser') throw new AppError('Forbidden', 'Only an organiser may manage events.');
     return user;
   };
@@ -36,43 +36,43 @@ function eventManagement(data, auth, clock = () => new Date()) {
     description: e.description, startsAt: e.starts_at, venue: e.venue, capacity: e.capacity,
     freePlaces: Math.max(0, e.capacity - e.registered) });
   return {
-    clubs(token) { return data.ownedClubs(organiser(token).id); },
-    detail(token, id) {
-      const user = auth.requireUser(token); validId(id);
-      const event = data.event(id);
+    async clubs(token) { return data.ownedClubs((await organiser(token)).id); },
+    async detail(token, id) {
+      const user = await auth.requireUser(token); validId(id);
+      const event = await data.event(id);
       if (!event) throw new AppError('NotFound', 'This event could not be found.');
       const canEdit = user.role === 'organiser' && event.owner_id === user.id;
-      const registration = data.registrationFor(user.id, id);
+      const registration = await data.registrationFor(user.id, id);
       return { event: publicEvent(event), canEdit, registrationId: registration ? registration.id : null,
-        attendees: canEdit ? data.attendees(id) : null };
+        attendees: canEdit ? await data.attendees(id) : null };
     },
-    create(token, body) {
-      const user = organiser(token);
+    async create(token, body) {
+      const user = await organiser(token);
       const event = input(body); validId(body.clubId);
-      const club = data.club(body.clubId);
+      const club = await data.club(body.clubId);
       if (!club) throw new AppError('NotFound', 'This club could not be found.');
       if (club.owner_id !== user.id) throw new AppError('Forbidden', 'Only the club owner may publish its events.');
-      const id = data.addEvent(user.id, { ...event, clubId: body.clubId });
+      const id = await data.addEvent(user.id, { ...event, clubId: body.clubId });
       return { id };
     },
-    remove(token, id) {
-      const user = organiser(token); validId(id);
-      return data.transaction(() => {
-        const current = data.event(id);
+    async remove(token, id) {
+      const user = await organiser(token); validId(id);
+      return data.transaction(async () => {
+        const current = await data.event(id);
         if (!current) throw new AppError('NotFound', 'This event could not be found.');
         if (current.owner_id !== user.id) throw new AppError('Forbidden', 'Only the event owner may delete this event.');
-        data.removeEvent(id);
+        await data.removeEvent(id);
       });
     },
-    edit(token, id, body) {
-      const user = organiser(token); validId(id);
-      return data.transaction(() => {
-        const current = data.event(id);
+    async edit(token, id, body) {
+      const user = await organiser(token); validId(id);
+      return data.transaction(async () => {
+        const current = await data.event(id);
         if (!current) throw new AppError('NotFound', 'This event could not be found.');
         if (current.owner_id !== user.id) throw new AppError('Forbidden', 'Only the event owner may edit this event.');
         const event = input(body);
         if (event.capacity < current.registered) throw new AppError('CapacityConflict', 'Capacity cannot be lower than the number already registered.');
-        data.updateEvent(id, event);
+        await data.updateEvent(id, event);
         return { id };
       });
     },

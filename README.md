@@ -1,25 +1,28 @@
 # Club Calendar
 
-Exercise 3 adds event registration/cancellation, owner-only organiser editing/deletion, Google sign-in, poster suggestions and four project MCP tools over SQLite. The full project scope is in SPEC.md; setup and verification commands are below.
+Exercise 4 local preparation uses Node.js, PostgreSQL, plain HTML/CSS/JavaScript and the shared-service MCP server. Deployment remains pending live verification. SPEC.md records the scope.
 
-Use Node 22.13 or newer. No external dependencies are needed:
+Use Node >=22.13. Install with `npm ci`. Privately configure DATABASE_URL for PostgreSQL and PUBLIC_BASE_URL for the app origin, then run:
 
 ```sh
-node scripts/setup.js
+npm run setup
 npm run seed
 npm start
 ```
 
-Open http://localhost:3000 (or port 3000 in Codespaces). The seed prints a generated password for the fictional member@example.test and organiser@example.test accounts. To replace a lost local demo password without resetting events: `npm run seed -- --rotate-demo-password`.
+`npm run setup` applies numbered PostgreSQL migrations explicitly. It does not seed. `npm run seed` is only for an explicitly chosen development database; it refuses NODE_ENV=production and displays a generated demo password once for member@example.test and organiser@example.test. Existing data is left unchanged. The old data/club-calendar.db is retained but is no longer the running app's database. Do not point development seed commands at a live database without reviewing that choice.
 
-Run `npm test`, `npm run coverage`, `npm run verify:slice` and `node checks/ex2.mjs`. Also run `node checks/ex3.mjs`. The MCP server starts with `npm run --silent mcp`; its project tools require MCP_TOKEN containing an unexpired ordinary application session token and enforce the same service rules as HTTP.
+`npm start`, setup, seed and db commands load a private local .env if present; environment variables already set in the terminal take precedence. Never share or commit its contents. Required server settings are DATABASE_URL, and HTTPS PUBLIC_BASE_URL in production; PORT defaults to 3000 and is assigned by Render. There is no SESSION_SECRET because sessions are opaque tokens with stored hashes, not signed cookies.
 
-The Google sign-in and poster features require environment configuration: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and PUBLIC_BASE_URL for Google sign-in (register the callback PUBLIC_BASE_URL/api/auth/google/callback); GEMINI_API_KEY and optionally MODEL_NAME for poster suggestions. Without configuration, password sign-in and manual event entry remain available. Posters are sent only after explicit selection and consent; suggestions never save an event automatically. Google sign-in and initial live poster extraction have been manually confirmed; the latest full form and extraction checks remain pending.
+Google sign-in needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Register PUBLIC_BASE_URL/api/auth/google/callback exactly with Google. Poster assistance needs GEMINI_API_KEY; MODEL_NAME defaults to gemini-3.5-flash-lite. Without those optional credentials, password login and manual entry remain available. Posters suggest title/date-time/venue/capacity/description, with 30-second server and 35-second browser limits. A missing timezone leaves the date blank. Nothing saves until confirmation.
 
+Event owners can edit/delete their events; confirmed deletion also removes registrations. Remove poster clears the selected file and consent, preserving event fields. Save errors appear beside the save action.
 
-Event owners can choose **Delete event** on the details screen, then confirm permanent deletion of the event and its registrations. **Remove poster** in the editor clears only the selected file and upload consent; it keeps the event fields.
+Run `npm test`, `npm run coverage`, `node checks/ex2.mjs`, `node checks/ex3.mjs` and `node mcp-server/check.mjs -- node mcp-server/server.js`. PostgreSQL integration tests require TEST_DATABASE_URL pointing to a disposable database: they create and remove an isolated schema and must never target production. CI supplies a PostgreSQL service. SQLite remains only for historical isolated regression fixtures. Tests never call Google or Gemini.
 
-For local external-feature setup, privately provide GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, PUBLIC_BASE_URL=http://localhost:3000 and GEMINI_API_KEY through the server environment. Register http://localhost:3000/api/auth/google/callback as the OAuth client's authorized redirect URI. Set MODEL_NAME=gemini-3.5-flash-lite for the chosen model. The code still defaults to gemini-2.5-flash when omitted; explicit configuration avoids relying on that older model. Poster extraction suggests title, date/time, venue, capacity and description, with a 30-second server limit and a 35-second browser limit. Date/time remains blank unless the poster supplies a timezone. If you store values in a local ignored .env file, launch with `node --env-file=.env src/server.js`; `npm start` does not automatically load that file. Restart the server after changing configuration. Never paste keys into the UI, logs or committed files.
+Build: `docker build -t club-calendar .`. Run: `docker run --rm -p 3000:3000 --env-file .env club-calendar`; the image runs as an unprivileged user in production mode and therefore needs an HTTPS PUBLIC_BASE_URL. Apply migrations separately before deploying. GET /health returns 200 with database connectivity, otherwise 503 without connection details.
+
+Local MCP: `npm run --silent mcp`, launched from a terminal with DATABASE_URL and an ordinary MCP_TOKEN from that same database. It does not automatically load .env or borrow a browser session. It supports stdio, not a remote HTTP/OAuth endpoint.
 
 ---
 

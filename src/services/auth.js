@@ -21,10 +21,10 @@ async function verifyPassword(password, stored) {
 function authService(data, clock = () => new Date()) {
   // Missing accounts still pay the password-derivation cost.
   const dummyHash = hashPassword(randomBytes(32).toString('hex'));
-  const issueSession = user => {
+  const issueSession = async user => {
     const token = randomBytes(32).toString('hex');
     const expires = new Date(clock().getTime() + 8 * 60 * 60 * 1000).toISOString();
-    data.createSession(digest(token), user.id, expires);
+    await data.createSession(digest(token), user.id, expires);
     return { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } };
   };
   return {
@@ -34,20 +34,20 @@ function authService(data, clock = () => new Date()) {
           !email.trim() || email.length > 254 || !password || Buffer.byteLength(password) > 1024) {
         throw new AppError('InvalidInput', 'Enter your email and password.');
       }
-      const user = data.findUser(email.trim().toLowerCase());
+      const user = await data.findUser(email.trim().toLowerCase());
       const matches = await verifyPassword(password, user ? user.password_hash : await dummyHash);
       if (!user || !matches) throw new AppError('InvalidCredentials', 'Email or password is incorrect');
       return issueSession(user);
     },
-    requireUser(token) {
+    async requireUser(token) {
       if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) throw new AppError('Unauthenticated', 'Sign in to see club events.');
-      const user = data.sessionUser(digest(token), clock().toISOString());
+      const user = await data.sessionUser(digest(token), clock().toISOString());
       if (!user) throw new AppError('Unauthenticated', 'Your session has ended. Sign in again.');
       return user;
     },
-    logout(token) {
-      this.requireUser(token);
-      data.revokeSession(digest(token));
+    async logout(token) {
+      await this.requireUser(token);
+      await data.revokeSession(digest(token));
     },
   };
 }

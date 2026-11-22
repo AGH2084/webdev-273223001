@@ -15,14 +15,14 @@ test('AC-6 verified provider identity links one local account and reuses ordinar
     let profile = { sub: 'google-subject', email: 'member@example.test', email_verified: true, name: 'Member' };
     const client = { configured: true, authorization: state => `https://accounts.example/?state=${state}`, exchange: async () => profile };
     const service = providerAuth(data, auth, client);
-    const begin = service.begin(); const session = await service.complete(begin.state, begin.state, 'fake-code');
-    assert.equal(auth.requireUser(session.token).id, 1);
+    const begin = (await service.begin()); const session = await service.complete(begin.state, begin.state, 'fake-code');
+    assert.equal((await auth.requireUser(session.token)).id, 1);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 2);
-    await assert.rejects(service.complete(begin.state, begin.state, 'fake-code'), { code: 'InvalidOAuthState' });
+    await assert.rejects(async () => service.complete(begin.state, begin.state, 'fake-code'), { code: 'InvalidOAuthState' });
     profile = { ...profile, email: 'changed@example.test', name: '' };
-    const again = service.begin(); assert.equal((await service.complete(again.state, again.state, 'code')).user.id, 1);
+    const again = (await service.begin()); assert.equal((await service.complete(again.state, again.state, 'code')).user.id, 1);
     profile = { sub: 'new-subject', email: 'new@example.test', email_verified: true };
-    const other = service.begin(); assert.equal((await service.complete(other.state, other.state, 'code')).user.role, 'member');
+    const other = (await service.begin()); assert.equal((await service.complete(other.state, other.state, 'code')).user.role, 'member');
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 3);
     assert.equal(service.available(), true);
   } finally { db.close(); }
@@ -35,17 +35,17 @@ test('AC-6 unverified emails, bad state, expired state and provider failure neve
     let now = new Date('2026-11-20T12:00:00Z');
     const client = { configured: true, authorization: () => 'url', exchange: async () => ({ sub: 'x', email: 'member@example.test', email_verified: false }) };
     const service = providerAuth(data, auth, client, () => now);
-    await assert.rejects(service.complete('bad', 'bad', 'code'), { code: 'InvalidOAuthState' });
-    const flow = service.begin();
-    await assert.rejects(service.complete(flow.state, 'wrong-browser', 'code'), { code: 'InvalidOAuthState' });
-    await assert.rejects(service.complete(flow.state, flow.state, 'code'), { code: 'UnverifiedIdentity' });
+    await assert.rejects(async () => service.complete('bad', 'bad', 'code'), { code: 'InvalidOAuthState' });
+    const flow = (await service.begin());
+    await assert.rejects(async () => service.complete(flow.state, 'wrong-browser', 'code'), { code: 'InvalidOAuthState' });
+    await assert.rejects(async () => service.complete(flow.state, flow.state, 'code'), { code: 'UnverifiedIdentity' });
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM provider_accounts').get().n, 0);
-    const expired = service.begin(); now = new Date('2026-11-20T12:11:00Z');
-    await assert.rejects(service.complete(expired.state, expired.state, 'code'), { code: 'InvalidOAuthState' });
+    const expired = (await service.begin()); now = new Date('2026-11-20T12:11:00Z');
+    await assert.rejects(async () => service.complete(expired.state, expired.state, 'code'), { code: 'InvalidOAuthState' });
     client.exchange = async () => { throw new Error('offline'); };
-    const failed = service.begin(); await assert.rejects(service.complete(failed.state, failed.state, 'code'), { code: 'ProviderUnavailable' });
+    const failed = (await service.begin()); await assert.rejects(async () => service.complete(failed.state, failed.state, 'code'), { code: 'ProviderUnavailable' });
     client.configured = false; assert.equal(service.available(), false);
-    assert.throws(() => service.begin(), { code: 'ProviderUnavailable' });
+    await assert.rejects(() => service.begin(), { code: 'ProviderUnavailable' });
   } finally { db.close(); }
 });
 

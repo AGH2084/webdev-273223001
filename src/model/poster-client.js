@@ -1,5 +1,5 @@
 function posterClient({ apiKey = process.env.GEMINI_API_KEY,
-  model = process.env.MODEL_NAME || 'gemini-2.5-flash', fetchImpl = fetch } = {}) {
+  model = process.env.MODEL_NAME || 'gemini-3.5-flash-lite', fetchImpl = fetch } = {}) {
   return {
     configured: Boolean(apiKey),
     async read(image) {

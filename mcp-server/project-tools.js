@@ -8,13 +8,13 @@ const tools = [
   { name: 'cancel_registration', description: 'Cancels a registration only when it belongs to the member whose ordinary session token is configured.',
     inputSchema: { type: 'object', properties: { registrationId: { type: 'integer', minimum: 1 } }, required: ['registrationId'], additionalProperties: false } },
 ];
-function callProjectTool(services, token, name, args) {
+async function callProjectTool(services, token, name, args) {
   try {
     let result;
-    if (name === 'upcoming_events') result = services.events.list(token).events;
-    else if (name === 'my_registrations') result = services.registrations.mine(token);
-    else if (name === 'register') result = services.registrations.register(token, args.eventId);
-    else { services.registrations.cancel(token, args.registrationId); result = { cancelled: true }; }
+    if (name === 'upcoming_events') result = (await services.events.list(token)).events;
+    else if (name === 'my_registrations') result = await services.registrations.mine(token);
+    else if (name === 'register') result = await services.registrations.register(token, args.eventId);
+    else { await services.registrations.cancel(token, args.registrationId); result = { cancelled: true }; }
     return { content: [{ type: 'text', text: JSON.stringify(result) }], isError: false };
   } catch (error) {
     const message = error instanceof AppError ? error.message : 'The request could not be completed.';

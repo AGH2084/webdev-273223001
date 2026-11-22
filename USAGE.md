@@ -9,5 +9,7 @@ One row per agent session. In Gemini CLI, type `/stats` before you quit and copy
 | 2026-11-19 | Gemini CLI (gemini-4-hydrogen) | 181,422 | 37,416 | | ≈ $2.8135 USD |
 | 2026-11-20 | Gemini CLI (gemini-4-hydrogen) | 341,843 | 67,433 | | ≈ $5.51341 USD |
 | 2026-11-21 | Gemini CLI (gemini-4-hydrogen) | 197,571 | 40,112 | | ≈ $2.9892 USD |
+| 2026-11-21 | Gemini CLI (gemini-3.5-flash-lite) | 17,384 | 58 | | ≈ $0.00325 USD |
+| 2026-11-22 | Gemini CLI (gemini-4-hydrogen) | 188,465 | 39,574 | | ≈ $2.9892 USD |
 
 Price list: [Google Gemini API standard pricing](https://ai.google.dev/gemini-api/docs/pricing/), checked 2026-11-19. Gemini 3.5 Flash-Lite: $0.30 per million input tokens, $0.03 per million cached input tokens, and $2.50 per million output tokens.

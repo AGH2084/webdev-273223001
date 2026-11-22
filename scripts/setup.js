@@ -1,8 +1,7 @@
-const { openDatabase } = require('../src/data/database');
-const [major, minor] = process.versions.node.split('.').map(Number);
-if (major < 22 || (major === 22 && minor < 13)) {
-  throw new Error('Use Node.js 22.13 or newer for built-in SQLite.');
-}
-const db = openDatabase();
-db.close();
-console.log('Database ready. No dependencies required. Next: npm run seed, then npm start.');
+const { configuration } = require('../src/config');
+const { openPostgres, migratePostgres } = require('../src/data/postgres');
+(async () => {
+  const db = openPostgres(configuration().databaseUrl);
+  try { await migratePostgres(db); console.log('PostgreSQL migrations applied. No seed ran.'); }
+  finally { await db.close(); }
+})().catch(() => { console.error('Migration failed. Check DATABASE_URL and PostgreSQL access; credentials are not logged.'); process.exitCode = 1; });

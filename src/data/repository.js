@@ -1,8 +1,10 @@
 function repository(db) {
+  if (db.kind === 'postgres') return require('./postgres-repository').postgresRepository(db.pool);
   return {
-    transaction(work) {
+    health: () => db.prepare('SELECT 1 AS ok').get(),
+    async transaction(work) {
       db.exec('BEGIN IMMEDIATE');
-      try { const result = work(); db.exec('COMMIT'); return result; }
+      try { const result = await work(); db.exec('COMMIT'); return result; }
       catch (error) { db.exec('ROLLBACK'); throw error; }
     },
     event: id => db.prepare(`SELECT e.*, c.name AS club,

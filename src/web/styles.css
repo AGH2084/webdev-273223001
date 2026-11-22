@@ -8,6 +8,7 @@
   --font: "DM Sans", system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
+html { scrollbar-gutter: stable; }
 body { margin: 0; background: var(--ground); color: var(--text); font: var(--body)/1.55 var(--font); }
 a { color: inherit; }
 button, input { font: inherit; }
@@ -30,7 +31,12 @@ p { margin-top: var(--s2); }
 .site-header { display: flex; justify-content: space-between; align-items: center; gap: var(--s4); padding: var(--s5); min-height: 96px; }
 .brand { display: inline-flex; align-items: center; gap: var(--s3); font-size: var(--section); font-weight: 700; text-decoration: none; min-height: 44px; white-space: nowrap; }
 .brand img { flex: none; }
+.site-header > a:not(.brand) { display: inline-flex; align-items: center; min-height: 44px; }
 .account { display: flex; align-items: center; gap: var(--s4); }
+#account-name { min-width: 14ch; }
+/* Reserve asynchronous account/actions and the initial three-row list footprint. */
+#create-event[hidden] { display: inline-flex !important; visibility: hidden; }
+#event-list { display: flow-root; min-height: 720px; }
 .site-footer { padding: var(--s5); display: flex; justify-content: space-between; color: var(--muted); font-size: var(--small); }
 .login-layout { padding: var(--s7) var(--s5); display: grid; grid-template-columns: 1.2fr 1fr; gap: calc(var(--gap) * 3); align-items: start; }
 .login-intro { padding-top: var(--s6); }
@@ -96,6 +102,7 @@ input { width: 100%; min-height: 48px; padding: var(--s3); color: var(--text); b
 .detail-layout { padding: var(--s6) var(--s5); max-width: 860px; }
 .detail-layout .agenda { margin-top: var(--s5); }
 .actions { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; margin-top: var(--s4); }
+#register-event, #cancel-event { min-width: 190px; }
 .button-link, .event-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--text); }
 .button-link { padding: var(--s2) var(--s4); border: 1px solid var(--control); border-radius: var(--control-radius); text-decoration: none; background: var(--surface); }
 .event-link { margin-top: var(--s2); }
@@ -104,4 +111,6 @@ select, textarea { width: 100%; min-height: 44px; font: inherit; border: 1px sol
 .consent input { width: 20px; min-height: 20px; flex: none; }
 #save-event { margin-top: var(--s5); }
 #google-sign-in { margin-top: var(--s4); width: 100%; justify-content: center; }
+#provider-message { min-height: 66px; }
+#poster-message { min-height: 66px; }
 @media (max-width: 600px) { .detail-layout { padding: var(--s4); } }

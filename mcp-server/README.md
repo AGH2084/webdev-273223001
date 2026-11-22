@@ -17,7 +17,7 @@ Your hand-written MCP server lives in this folder. Write it in any language you 
 
 ## Exercise 3 implementation
 
-The server now retains find_lecture/list_lectures and adds upcoming_events, my_registrations, register and cancel_registration in project-tools.js. Project tools use the same services as HTTP, with MCP_TOKEN identifying an ordinary session against the same local database. They return isError on refusal. Local stdio is supported; remote HTTP/OAuth MCP is not implemented. Startup does not automatically load .env.
+The server now retains find_lecture/list_lectures and adds upcoming_events, my_registrations, register and cancel_registration in project-tools.js. Project tools use the same services as HTTP, with MCP_TOKEN identifying an ordinary session against the same PostgreSQL database. They return isError on refusal. Local stdio is supported; remote HTTP/OAuth MCP is not implemented. Startup does not automatically load .env; supply DATABASE_URL and MCP_TOKEN through its process environment. Database-facing tool calls are awaited.
 
 The actual lecture data contains 1–10. The current tool description and missing-lecture message still say 1–12; this is a known implementation inconsistency. The transcript below is historical Exercise 1 evidence, not the current six-tool catalog or current logging behavior.
 

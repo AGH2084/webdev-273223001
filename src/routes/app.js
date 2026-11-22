@@ -69,9 +69,13 @@ function createApp(db, { clock, secureCookies = false, providerClient = googleCl
     try {
       const url = new URL(req.url, 'http://localhost');
       const token = sessionToken(req);
+      if (req.method === 'GET' && url.pathname === '/health') {
+        try { await data.health(); return json(200, { status: 'ok', db: 'ok' }); }
+        catch { return json(503, { status: 'error', db: 'down' }); }
+      }
       if (req.method === 'GET' && url.pathname === '/api/auth/providers') return json(200, { google: provider.available() });
       if (req.method === 'GET' && url.pathname === '/api/auth/google') {
-        const flow = provider.begin();
+        const flow = await provider.begin();
         res.setHeader('Set-Cookie', `club_oauth=${flow.state}; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=600${secureCookies ? '; Secure' : ''}`);
         return redirect(flow.url);
       }
@@ -97,29 +101,29 @@ function createApp(db, { clock, secureCookies = false, providerClient = googleCl
       if (req.method === 'GET' && url.pathname === '/') return redirect('/events');
       if (req.method === 'GET' && url.pathname === '/login') return file('login.html');
       if (req.method === 'GET' && ['/events', '/event', '/event/edit'].includes(url.pathname)) {
-        try { auth.requireUser(token); } catch (error) {
+        try { await auth.requireUser(token); } catch (error) {
           if (error.code === 'Unauthenticated') return redirect('/login');
           throw error;
         }
         return file(url.pathname === '/events' ? 'events.html' : url.pathname === '/event' ? 'event.html' : 'editor.html');
       }
-      if (req.method === 'GET' && url.pathname === '/api/events') return json(200, events.list(token));
-      if (url.pathname.startsWith('/api/') && ['POST', 'PATCH', 'DELETE'].includes(req.method) && !url.pathname.startsWith('/api/auth/')) auth.requireUser(token);
+      if (req.method === 'GET' && url.pathname === '/api/events') return json(200, await events.list(token));
+      if (url.pathname.startsWith('/api/') && ['POST', 'PATCH', 'DELETE'].includes(req.method) && !url.pathname.startsWith('/api/auth/')) await auth.requireUser(token);
       if (req.method === 'POST' && url.pathname === '/api/poster') return json(200, await posters.read(token, await jsonBody(req, 1500000)));
-      if (req.method === 'GET' && url.pathname === '/api/registrations') return json(200, { registrations: registrations.mine(token) });
-      if (req.method === 'POST' && url.pathname === '/api/registrations') return json(201, registrations.register(token, (await jsonBody(req)).eventId));
+      if (req.method === 'GET' && url.pathname === '/api/registrations') return json(200, { registrations: await registrations.mine(token) });
+      if (req.method === 'POST' && url.pathname === '/api/registrations') return json(201, await registrations.register(token, (await jsonBody(req)).eventId));
       const registrationPath = url.pathname.match(/^\/api\/registrations\/(\d+)$/);
       if (req.method === 'DELETE' && registrationPath) {
-        registrations.cancel(token, Number(registrationPath[1])); res.writeHead(204); return res.end();
+        await registrations.cancel(token, Number(registrationPath[1])); res.writeHead(204); return res.end();
       }
-      if (req.method === 'GET' && url.pathname === '/api/clubs') return json(200, { clubs: management.clubs(token) });
-      if (req.method === 'POST' && url.pathname === '/api/events') return json(201, management.create(token, await jsonBody(req)));
+      if (req.method === 'GET' && url.pathname === '/api/clubs') return json(200, { clubs: await management.clubs(token) });
+      if (req.method === 'POST' && url.pathname === '/api/events') return json(201, await management.create(token, await jsonBody(req)));
       const eventPath = url.pathname.match(/^\/api\/events\/(\d+)$/);
-      if (req.method === 'GET' && eventPath) return json(200, management.detail(token, Number(eventPath[1])));
+      if (req.method === 'GET' && eventPath) return json(200, await management.detail(token, Number(eventPath[1])));
       if (req.method === 'DELETE' && eventPath) {
-        management.remove(token, Number(eventPath[1])); res.writeHead(204); return res.end();
+        await management.remove(token, Number(eventPath[1])); res.writeHead(204); return res.end();
       }
-      if (req.method === 'PATCH' && eventPath) return json(200, management.edit(token, Number(eventPath[1]), await jsonBody(req)));
+      if (req.method === 'PATCH' && eventPath) return json(200, await management.edit(token, Number(eventPath[1]), await jsonBody(req)));
       if (req.method === 'POST' && url.pathname === '/api/auth/login') {
         const body = await jsonBody(req);
         const result = await auth.login(body.email, body.password);
@@ -128,7 +132,7 @@ function createApp(db, { clock, secureCookies = false, providerClient = googleCl
       }
       if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
         await jsonBody(req);
-        auth.logout(token);
+        await auth.logout(token);
         res.setHeader('Set-Cookie', cookie(''));
         res.writeHead(204); return res.end();
       }
@@ -136,7 +140,7 @@ function createApp(db, { clock, secureCookies = false, providerClient = googleCl
     } catch (error) {
       if (error instanceof AppError) return json(statuses[error.code] || 400, { error: error.code, message: error.message });
       // Do not log request bodies, cookies, database values or error messages containing them.
-      console.error('Request failed:', error.name);
+      console.error('Request failed:', error.name, error.code || 'Unknown', error.stack?.split('\n').slice(1).join('\n'));
       return json(500, { error: 'InternalError', message: 'We could not complete that request. Please try again.' });
     }
   });

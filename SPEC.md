@@ -19,8 +19,8 @@ Club events.
 - No public email/password sign-up or organiser self-registration form. Local demonstration accounts are explicitly seeded; first-time verified Google sign-in creates a member account.
 
 ## Constraints
-- Node.js 22.13 or newer, built-in HTTP/crypto/SQLite modules, plain HTML/CSS/JavaScript; no external runtime dependencies.
-- SQLite is the local database for Exercises 2 and 3. Move the data adapter and migrations to PostgreSQL before the persistent Neon deployment in Exercise 4.
+- Node.js 22.13 or newer, built-in HTTP/crypto/SQLite modules, plain HTML/CSS/JavaScript; pg is the PostgreSQL driver; other runtime features use built-in Node modules.
+- The running HTTP app and MCP server now use PostgreSQL through DATABASE_URL. Neon is the intended persistent deployment database; isolated SQLite fixtures retain regression coverage of Exercises 2 and 3. Old SQLite data is retained and is not automatically imported or deleted.
 - Numbered migrations, parameterised SQL only in src/data/, and business rules only in src/services/.
 - Passwords are salted scrypt hashes. No credentials, personal prompts or raw session tokens in application logs or committed configuration. The explicit local seed command displays a newly generated fictional demo-account password once for the developer.
 - Final coverage gates: 100% of service lines, functions and branches; at least 80% overall. Every AC has a named test by Exercise 3.
@@ -29,7 +29,7 @@ Club events.
 <!-- Which model, which modality, and what it does for a user.
      Name three things or the check fails: the input it receives, the output it produces,
      and what happens when the model is slow, rate-limited or wrong. -->
-- Model: Gemini 3.5 Flash-Lite, vision, selected through MODEL_NAME=gemini-3.5-flash-lite. Poster extraction helps organisers fill event forms from an image. The adapter is src/model/poster-client.js; the implementation still defaults to the older gemini-2.5-flash if MODEL_NAME is omitted, so explicit configuration is required for the chosen model. GEMINI_API_KEY is supplied privately through the server environment.
+- Model: Gemini 3.5 Flash-Lite, vision, selected through MODEL_NAME=gemini-3.5-flash-lite. Poster extraction helps organisers fill event forms from an image. The adapter is src/model/poster-client.js; the implementation defaults to gemini-3.5-flash-lite when MODEL_NAME is omitted. GEMINI_API_KEY is supplied privately through the server environment.
 - Input: one PNG or JPEG poster up to 1 MB, explicitly selected by an organiser and sent to Google's hosted API only after upload consent. No member profiles, passwords, sessions or attendee lists are sent. The poster is used for extraction, not stored as an event attachment. Remove poster clears the local selection and consent and ignores outstanding suggestions without changing event fields.
 - Output: suggested title, start date/time, venue, capacity and description, validated by src/services/poster.js before display and labelled as suggestions. Title and venue are plain text limited to 120 and 160 characters. Capacity is accepted only as an integer from 1 to 5000; description is plain text limited to 2000 characters. Missing or invalid capacity/description suggestions leave existing form values unchanged.
 - Date handling: the model is instructed to return a UTC date/time only when the poster explicitly supplies the date, time and timezone. Missing, malformed or invalid dates leave the date field blank; no timezone is assumed. The organiser must correct past dates before saving because events require a future start time.
@@ -64,15 +64,30 @@ Plain HTML, CSS tokens and browser JavaScript calling the REST API. Implemented 
 All screens must support loading, empty, error and success states, keyboard operation with visible focus, labelled inputs, 44px touch targets, measured 4.5:1 text contrast, and no page overflow at 380/768/1280px. Use a light agenda layout with a date block for each event; no dark mode in Slice 1 to keep one palette thoroughly checked. Track the final checklist in docs/UI.md during Exercise 4. Club, title, date/time, venue and places are labelled required; description is optional. Save errors identify the failing field and appear above the save button, receive focus and scroll into view. The editor accepts device-local date/time and converts it to UTC; event displays use Europe/Sofia.
 
 ## Architecture
+### Screen rendering decisions
+
+The server serves static HTML shells after the relevant access check. Browser JavaScript renders dynamic project data and request state; no server template renderer or client framework is used.
+
+| Screen | Rendered where | Why | What the user sees while waiting |
+| --- | --- | --- | --- |
+| Sign in | Server HTML form; browser handles provider availability and submission | The form is immediately available; credentials go to the HTTP API | Checking your details… and a disabled Signing in… button; success opens the calendar |
+| Upcoming events | Server shell; browser fetches /api/events and creates event rows | Refresh retrieves current place counts without navigation | Loading club events…, aria-busy and disabled Refresh; existing rows remain during refresh |
+| Event details | Server shell; browser fetches /api/events/:id | Registration actions refresh data and permissions from the shared services | Loading event…; reserving/cancelling messages; initial details hidden until the result arrives |
+| Organiser editor | Server shell; browser loads clubs/event and fills controls | Corrections and poster suggestions remain unsaved until explicit confirmation | Loading event form… before controls appear; Reading the poster… with its action disabled; Saving event… beside submission |
+
+Local evidence is recorded in docs/UI.md and READINESS.md. The events Network capture measured DOMContentLoaded at 553 ms and load at 871 ms; these are not production timings. The create and edit routes now have distinct browser titles. Chrome recorded zero layout shift on the final calendar and create-editor samples with Slow 4G. The poster interaction capture reported a maximum 32 ms interaction-to-next-paint across the recorded interactions.
+
+### Request and service flow
+
 One registration request crosses both browser and server layers:
 
 1. src/web/event.html supplies the view. In src/web/event.js, registrationAction(false) calls window.ClubAPI from src/web/api.js with POST /api/registrations and { eventId }. The browser holds registrationId in a script variable and view/request state in the DOM; buttons are disabled while the request runs.
-2. src/routes/app.js reads the club_session cookie, checks authentication before protected writes, parses JSON and calls registrationsService.register(token, eventId) from src/services/registrations.js. The route maps AppError codes to statuses; it does not decide capacity, event dates or registration ownership.
-3. The service calls auth.requireUser from src/services/auth.js and repository.transaction from src/data/repository.js. Inside BEGIN IMMEDIATE, it checks the event exists, has not started, is not already registered by this user and has capacity, then calls repository.addRegistration. All runtime SQL lives in src/data/. SQLite applies the unique member/event relation from migrations/001_initial.sql and capacity triggers from migrations/002_feature_integrity.sql as integrity boundaries.
-4. The successful service result is { id, userId, eventId }, returned as HTTP 201 JSON. ClubAPI parses it or throws a readable error on failure. event.js then calls loadDetail(), reads GET /api/events/:id and renders the event, free-place count and registration action with textContent. Detail data includes { event, canEdit, registrationId, attendees }; attendee names are returned only to the event-owning organiser.
+2. src/routes/app.js reads the club_session cookie, checks authentication before protected writes, parses JSON and awaits registrationsService.register(token, eventId) from src/services/registrations.js. The route maps AppError codes to statuses; it does not decide capacity, event dates or registration ownership.
+3. The service calls auth.requireUser from src/services/auth.js and repository.transaction from src/data/repository.js. Inside a PostgreSQL transaction on one connection, the repository locks the event row before counting registrations. The service checks the event exists, has not started, is not already registered by this user and has capacity, then calls repository.addRegistration. All runtime SQL lives in src/data/. PostgreSQL migrations/postgres/003_initial_postgres.sql and 004_capacity_protection.sql add unique member/event and capacity integrity protections. The original SQLite migrations remain unchanged for regression fixtures.
+4. Database-facing services and their HTTP/MCP callers are asynchronous. The successful service result is { id, userId, eventId }, returned as HTTP 201 JSON. ClubAPI parses it or throws a readable error on failure. event.js then calls loadDetail(), reads GET /api/events/:id and renders the event, free-place count and registration action with textContent. Detail data includes { event, canEdit, registrationId, attendees }; attendee names are returned only to the event-owning organiser.
 5. Cancellation uses registrationsService.cancel(token, registrationId), checks ownership in the service, deletes the registration inside a transaction and returns HTTP 204. Event deletion similarly enters eventManagement.remove in src/services/event-management.js after UI confirmation, checks organiser/event ownership and calls repository.removeEvent; the database cascades deletion to that event's registrations.
 
-For MCP, mcp-server/server.js reads MCP_TOKEN from the process environment and dispatches to callProjectTool in mcp-server/project-tools.js. src/application.js composes the same eventsService and registrationsService implementations used by HTTP. MCP register/cancel therefore enters at the service layer and enforces the same rules, returning MCP isError results rather than HTTP statuses. The two retained lecture tools read lectures.json separately and do not access project data.
+For MCP, mcp-server/server.js reads MCP_TOKEN from the process environment and dispatches to callProjectTool in mcp-server/project-tools.js. src/application.js composes the same eventsService and registrationsService implementations used by HTTP. MCP register/cancel therefore enters at the service layer and enforces the same rules, returning MCP isError results rather than HTTP statuses. The two retained lecture tools read lectures.json separately and do not access project data. PostgreSQL connectivity and bounded pool/query waits are configured in src/data/postgres.js; the AsyncLocalStorage scope in src/data/postgres-repository.js keeps each transaction on its checked-out connection. npm run setup applies PostgreSQL migrations explicitly; server startup never migrates or seeds. GET /health uses repository.health to report database connectivity with 200 or 503.
 
 Poster requests start in src/web/editor.js, use ClubAPI and enter posterService.read in src/services/poster.js via the route. Only src/model/poster-client.js contacts the model; the service validates the returned fields and supplies manual fallback. The browser fills suggestions without saving; explicit form submission invokes eventManagement.create/edit and its validation. Provider exchange is isolated in src/auth/google-client.js; src/services/provider-auth.js controls verified identity linking and ordinary session issuance.
 
@@ -108,10 +123,21 @@ One layering inconsistency remains: src/web/login.js and src/web/events.js make 
 - [AC-19] An event-owning organiser confirms deletion and receives 204; the event and its registrations disappear. Signed-out deletion returns 401, a member or another organiser receives 403 without changing data, and a missing event returns 404.
 - [AC-20] An organiser can remove a selected poster without reloading: the file input and upload consent clear, existing event fields remain unchanged, and an outstanding suggestion cannot repopulate them after removal. No event or saved data is deleted by this action.
 
+### Slice 3: deployment readiness
+- [AC-21] GET /health checks database connectivity and returns 200 with status ok/db ok, or 503 with status error/db down without connection details.
+- [AC-22] Unknown pages return a readable 404, and malformed authenticated write requests return a readable 400 without a stack trace.
+
+- [AC-23] Server startup refuses missing DATABASE_URL, invalid port/database URL and non-HTTPS production PUBLIC_BASE_URL, naming the configuration problem without exposing credentials.
+
+- [AC-24] PostgreSQL migrations apply once to an empty database; concurrent registrations cannot exceed capacity, and HTTP/MCP enforce the same ownership and registration rules against PostgreSQL.
+
 ## Traceability
 <!-- Filled in from Exercise 3 onward: each AC id, and the test that names it. -->
 | Criterion | Test |
 | --- | --- |
+| AC-24 | test/postgres.test.js |
+| AC-23 | test/config.test.js |
+| AC-21 / AC-22 | test/readiness.test.js |
 | AC-19 | test/event-management.test.js; test/feature-api.test.js; test/web.test.js |
 | AC-20 | test/web.test.js |
 | AC-1 | test/auth.test.js; test/api.test.js |
@@ -140,6 +166,6 @@ AC-2 through AC-9 were implemented and tested in Exercise 3.
 - Exercise 3 automated evidence: 49 tests pass, with 100% service lines/functions/branches and 95.49% overall lines at the last full coverage run. The exercise self-check passed 18/18 and MCP protocol conformance passed 12/12. These results do not establish browser layout quality or live provider behavior.
 - Exercise 3 manual evidence reported on 2026-11-21: Google sign-in works; live poster extraction filled title and venue; form error visibility and required labels were confirmed. OpenCode MCP testing confirmed listing, registration, duplicate refusal and cancellation, restoring the original registration/place-count state. The latest complete manual checklist, full-event/other-user/invalid-session MCP checks and live capacity/description extraction remain for confirmation.
 - Known differences requiring review: my_registrations currently returns all of the owner's registrations, although its specified behavior above says upcoming. The event screen can re-enable Register after certain failed requests even when an event has started; the service still refuses it. Lecture tools retain a 1–12 description/error although lectures.json contains 1–10. These discrepancies have not been resolved by changing the requirements.
-- Deployment: local Exercise 3 work has not been pushed; remote CI results are pending. SQLite-to-PostgreSQL deployment and the final UI audit remain Exercise 4 work.
+- Exercise 3 was pushed through 0c910e8 with green CI. Exercise 4 local work adds PostgreSQL, startup configuration, health checks, safe errors and Docker packaging. Local UI evidence, the rendering table and READINESS.md draft are recorded; Neon/Render configuration, live verification and personal report review remain pending. The migration changes which database the running app uses; prior SQLite records and sessions are not present in a new PostgreSQL database.
 
 <!-- After the agent builds the slice: which criteria passed, which it missed or reinterpreted, and what you changed in this spec because of it. -->

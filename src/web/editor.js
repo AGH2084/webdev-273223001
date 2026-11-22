@@ -1,4 +1,5 @@
 const editId = Number(new URLSearchParams(location.search).get('id'));
+document.title = `${editId ? 'Edit' : 'Create'} event · Club Calendar`;
 const eventForm = document.querySelector('#event-form');
 const editorMessage = document.querySelector('#editor-message');
 const editorRetry = document.querySelector('#editor-retry');

@@ -24,9 +24,23 @@ function boot(script, fetch, { api, search = '', fileReader, abortSignal = Abort
     document, window, fetch, URLSearchParams, FileReader: fileReader, AbortSignal: abortSignal, Intl, Date, Error,
     location: { search, assign: url => navigations.push(url) },
   }, { filename: join(__dirname, '../src/web', script) });
-  return { elements, navigations, window };
+  return { elements, navigations, window, document };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('AC-5 editor document title distinguishes creating from editing before data arrives', () => {
+  const api = () => new Promise(() => {});
+  assert.equal(boot('editor.js', null, { api }).document.title, 'Create event · Club Calendar');
+  assert.equal(boot('editor.js', null, { api, search: '?id=1' }).document.title, 'Edit event · Club Calendar');
+});
+
+test('AC-5 AC-16 detail and editor announce loading before their pending requests resolve', () => {
+  const api = () => new Promise(() => {});
+  const detail = boot('event.js', null, { api, search: '?id=1' });
+  const editor = boot('editor.js', null, { api });
+  assert.equal(detail.elements.get('#detail-message').textContent, 'Loading event…');
+  assert.equal(editor.elements.get('#editor-message').textContent, 'Loading event form…');
+});
 
 test('AC-15 event UI announces loading, renders honest empty state, shows failure and retries', async () => {
   let reply;

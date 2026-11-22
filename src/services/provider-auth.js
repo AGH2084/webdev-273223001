@@ -5,11 +5,11 @@ const { digest, hashPassword } = require('./auth');
 function providerAuth(data, auth, client, clock = () => new Date()) {
   return {
     available() { return client.configured; },
-    begin() {
+    async begin() {
       if (!client.configured) throw new AppError('ProviderUnavailable', 'Google sign-in is unavailable. Use your email and password.');
       const state = randomBytes(32).toString('hex');
       const verifier = randomBytes(32).toString('base64url');
-      data.storeOAuthState(digest(state), verifier, new Date(clock().getTime() + 600000).toISOString());
+      await data.storeOAuthState(digest(state), verifier, new Date(clock().getTime() + 600000).toISOString());
       return { state, url: client.authorization(state, verifier) };
     },
     async complete(state, browserState, code) {
@@ -17,7 +17,7 @@ function providerAuth(data, auth, client, clock = () => new Date()) {
           typeof code !== 'string' || !code || code.length > 2048) {
         throw new AppError('InvalidOAuthState', 'Sign-in could not be verified. Start again.');
       }
-      const flow = data.consumeOAuthState(digest(state), clock().toISOString());
+      const flow = await data.consumeOAuthState(digest(state), clock().toISOString());
       if (!flow) throw new AppError('InvalidOAuthState', 'This sign-in has expired or was already used. Start again.');
       let profile;
       try { profile = await client.exchange(code, flow.verifier); }
@@ -30,11 +30,11 @@ function providerAuth(data, auth, client, clock = () => new Date()) {
       const email = profile.email.toLowerCase();
       const name = typeof profile.name === 'string' && profile.name.trim() ? profile.name.trim().slice(0, 100) : email;
       const randomHash = await hashPassword(randomBytes(32).toString('hex'));
-      return data.transaction(() => {
-        const linked = data.providerUser(profile.sub);
+      return data.transaction(async () => {
+        const linked = await data.providerUser(profile.sub);
         if (linked) return auth.issueSession(linked);
-        const user = data.findUser(email) || data.createProviderUser(email, name, randomHash);
-        data.linkProvider(profile.sub, user.id);
+        const user = await data.findUser(email) || await data.createProviderUser(email, name, randomHash);
+        await data.linkProvider(profile.sub, user.id);
         return auth.issueSession(user);
       });
     },

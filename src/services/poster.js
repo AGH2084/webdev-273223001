@@ -15,7 +15,7 @@ function posterService(auth, client, { timeoutMs = 30000 } = {}) {
   const text = (value, limit) => typeof value === 'string' ? value.trim().slice(0, limit) : '';
   return {
     async read(token, image) {
-      const user = auth.requireUser(token);
+      const user = await auth.requireUser(token);
       if (user.role !== 'organiser') throw new AppError('Forbidden', 'Only an organiser may read a poster.');
       if (!image || image.consent !== true || !['image/png', 'image/jpeg'].includes(image.mimeType) ||
           typeof image.data !== 'string' || image.data.length > 1400000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(image.data)) {
